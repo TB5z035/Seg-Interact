@@ -1,0 +1,12 @@
+model: MinkUNet34C
+
+train_dataset: scannet
+train_dataset_root: /DATA_EDS/yangry/dataset/SCANNET
+val_dataset: scannet
+val_dataset_root: /DATA_EDS/yangry/dataset/SCANNET
+
+epochs: 100
+train_batch_size: 1
+train_num_workers: 0
+val_batch_size: 1
+val_num_workers: 0
