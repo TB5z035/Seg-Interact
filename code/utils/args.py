@@ -15,6 +15,7 @@ def get_args():
     parser.add_argument("--train_dataset_root", type=str, default="data")
     parser.add_argument("--val_dataset", type=str, default="scannet")
     parser.add_argument("--val_dataset_root", type=str, default="data")
+    parser.add_argument("--train_transform", type=object, default=None)
 
     # Training
     parser.add_argument("--epochs", type=int, default=100)
@@ -42,3 +43,9 @@ def get_args():
     # Cache the args as a text string to save them in the output dir later
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
     return args, args_text
+
+if __name__ == '__main__':
+    args, args_text = get_args()
+    print(args)
+    print(args_text)
+    print(args.exp_dir)

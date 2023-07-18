@@ -16,8 +16,8 @@ logger = logging.getLogger('train')
 
 def train(args):
     # Dataset
-    train_dataset = DATASETS[args.train_dataset](args.train_dataset_root, split='train')
-    val_dataset = DATASETS[args.val_dataset](args.val_dataset_root, split='val')
+    train_dataset = DATASETS[args.train_dataset](args.train_dataset_root, split='train', transform=args.train_transform)
+    val_dataset = DATASETS[args.val_dataset](args.val_dataset_root, split='val', transform=args.val_transform)
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
 
@@ -44,7 +44,7 @@ def train(args):
 
     # Criterion
     # TODO: init from args
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
 
     global_iter = 0
     for epoch_idx in range(args.epochs):
@@ -58,16 +58,15 @@ def train(args):
 
 def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_idx, logging_freq=10):
     model.train()
-    for i, (coords, feats, _, labels) in enumerate(train_loader):
+    for i, (coords, feats, _, labels, _) in enumerate(train_loader):
         optimizer.zero_grad()
         coords, feats, labels = coords.to(device), feats.to(device), labels.to(device)
         output = model(coords, feats)
-        breakpoint()
         loss = criterion(output.F, labels)
         loss.backward()
         optimizer.step()
         if i % logging_freq == 0:
-            logger.info(f"Epoch: {epoch_idx}, Iteration: {i}, Loss: {loss.item()}")
+            logger.info(f"Epoch: {epoch_idx:4d}, Iteration: {i:4d} / {len(train_loader):4d}, Loss: {loss.item()}")
         iter_idx += 1
 
 

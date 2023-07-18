@@ -9,6 +9,7 @@ import torch
 from plyfile import PlyData
 from torch.utils.data import Dataset
 
+from .transforms import TRANSFORMS, Compose, parse_transform
 from . import register_dataset
 
 is_valid_scene_id = re.compile(r'^scene\d{4}_\d{2}$').match
@@ -182,11 +183,11 @@ class ScannetDataset(Dataset):
         blabels = torch.cat(labels, 0)
         return bcoords, bfeats, bfaces, blabels, None
 
-    def __init__(self, root, split='train', transform=None):
+    def __init__(self, root, split='train', transform=[]):
         super().__init__()
         self.root = root
         self.split = split
-        self.transform = transform  # TODO: implement transform
+        self.transform = parse_transform(transform)
         self._load_scene_ids(split)
 
     def _load_scene_ids(self, split):
@@ -245,40 +246,77 @@ class ScannetDataset(Dataset):
         train_labels = np.ones_like(labels) * 255
         for l in self.LABEL_PROTOCOL:
             train_labels[labels == l.id] = l.train_id
-        return labels
+        return train_labels
 
-    def __getitem__(self, index) -> dict:
+    def _prepare_item(self, index):
         """
         Get a scene from the dataset
         """
         scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
         coords, colors, faces, labels = self._load_ply(scene_path)
+
+        coords, colors, faces, labels, _ = self.transform(coords, colors[:, :3], faces, labels, None)
+        return coords, colors, faces, labels, None
+
+    def __getitem__(self, index):
+        coords, colors, faces, labels, _ = self._prepare_item(index)
         coords = torch.from_numpy(coords)
+        colors = torch.from_numpy(colors)
         faces = torch.from_numpy(faces)
-        labels = torch.from_numpy(labels.astype(np.int32))
-        return coords, colors[:, :3], faces, labels, None
+        labels = torch.from_numpy(labels.astype(np.int64))
+        return coords, colors, faces, labels, None
 
     def __len__(self):
         return len(self.scene_ids)
 
 
+@register_dataset('scannet_quantized')
 class ScanNetQuantized(ScannetDataset):
     VOXEL_SIZE = 0.02
 
     def _collate_fn(self, batch):
         coords, feats, faces, labels, maps = list(zip(*batch))
         indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
-        bcoords = torch.cat((indices, *coords), -1)
+        bcoords = torch.cat((indices, torch.cat(coords, 0)), -1)
         bfeats = torch.cat(feats, 0)
         bfaces = torch.cat(faces, 0)
         blabels = torch.cat(labels, 0)
         return bcoords, bfeats, bfaces, blabels, maps
 
     def __getitem__(self, index) -> dict:
-        coords, colors, faces, labels, _ = super().__getitem__(index)
-        coords = coords / self.VOXEL_SIZE
+        coords, colors, faces, labels, _ = self._prepare_item(index)
+        coords = torch.from_numpy(coords)
+        colors = torch.from_numpy(colors)
+        faces = torch.from_numpy(faces)
+        labels = torch.from_numpy(labels.astype(np.int64))
+
+        coords = (coords / self.VOXEL_SIZE).to(torch.int32)
         unique_map, inverse_map = ME.utils.quantization.unique_coordinate_map(coords)
         coords = coords[unique_map]
         colors = colors[unique_map]
         labels = labels[unique_map]
         return coords, colors, faces, labels, (unique_map, inverse_map)
+
+
+class ScanNetQuantizedLimited(ScanNetQuantized):
+
+    def __init__(self, root, split='train', transform=None, limit=None):
+        super().__init__(root, split, transform)
+        assert limit in ['20', '50', '100', '200']
+        assert osp.exists(osp.join(
+            root, 'data_efficient')), 'Data efficient specifications ($(ROOT)/data_efficient) not found'
+        self.limit = limit
+        self.limit_dict = torch.load(osp.join(root, 'data_efficient', 'points', f'points{limit}'))
+
+    def _prepare_item(self, index):
+        scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
+        coords, colors, faces, labels = self._load_ply(scene_path)
+
+        scene_id = self.scene_ids[index]
+        limit = self.limit_dict[scene_id]
+        mask = torch.ones_like(labels, dtype=torch.bool)
+        mask[limit] = False
+        labels[mask] = 255
+
+        coords, colors, faces, labels, _ = self.transform(coords, colors[:, :3], faces, labels, None)
+        return coords, colors, faces, labels, None

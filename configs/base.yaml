@@ -1,12 +1,49 @@
 model: MinkUNet34C
 
-train_dataset: scannet
-train_dataset_root: /DATA_EDS/yangry/dataset/SCANNET
-val_dataset: scannet
-val_dataset_root: /DATA_EDS/yangry/dataset/SCANNET
+train_dataset: scannet_quantized
+train_dataset_root: /home/Guest/tb5zhh/datasets/ScanNet
+val_dataset: scannet_quantized
+val_dataset_root: /home/Guest/tb5zhh/datasets/ScanNet
 
 epochs: 100
-train_batch_size: 1
+train_batch_size: 4
 train_num_workers: 0
 val_batch_size: 1
-val_num_workers: 0
+val_num_workers: 4
+
+train_transform:
+  - elastic_distortion:
+      distortion_params: 
+        - - 0.2
+          - 0.4
+        - - 0.8
+          - 1.6
+  - random_dropout:
+      dropout_ratio: 0.2
+  - random_apply:
+      prob: 0.2
+      inner_t: point_chromatic_auto_contrast
+  - random_apply:
+      prob: 0.2
+      inner_t: point_chromatic_translation
+  - random_apply:
+      prob: 0.95
+      inner_t: point_chromatic_jitter
+  - random_horizontal_flip:
+      upright_axis: 'z'
+  - random_scale:
+      scale_rng: 
+        - 0.9
+        - 1.1
+  - random_rotation:
+      angle_v: 3
+      angle_h: 180
+      upright_axis: 'z'
+  - point_chromatic_normalize: 
+  - point_to_center:
+  - point_cloud_size_limit:
+      max_num: 200000
+
+val_transform:
+  - point_chromatic_normalize:
+  - point_to_center:
