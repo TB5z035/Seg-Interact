@@ -1,8 +1,10 @@
 import logging
+import multiprocessing as mp
 
 import MinkowskiEngine as ME
 import torch
 from torch.utils.data import DataLoader
+import torch.distributed as dist
 
 from ..dataset import DATASETS
 from .metrics import IoU, mIoU
@@ -15,7 +17,14 @@ device = get_device()
 logger = logging.getLogger('train')
 
 
-def train(args):
+def train(local_rank=0, world_size=1, args=None):
+    assert args is not None
+    
+    # Distributed init
+    if world_size > 1:
+        dist.init_process_group(backend='nccl', rank=local_rank, world_size=world_size, init_method='env://')
+        torch.cuda.set_device(local_rank)
+
     # Dataset
     train_dataset = DATASETS[args.train_dataset](args.train_dataset_root, split='train', transform=args.train_transform)
     val_dataset = DATASETS[args.val_dataset](args.val_dataset_root, split='val', transform=args.val_transform)
@@ -23,10 +32,15 @@ def train(args):
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
 
     # DataLoader
+    if world_size > 1:
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
+    else:
+        train_sampler = None
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.train_batch_size,
                                   shuffle=True,
                                   num_workers=args.train_num_workers,
+                                  sampler=torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=rank),
                                   collate_fn=train_dataset._collate_fn)
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=args.val_batch_size,
@@ -35,9 +49,10 @@ def train(args):
                                 collate_fn=val_dataset._collate_fn)
     # Model
     network = NETWORKS[args.model](train_dataset.num_channel, train_dataset.num_train_classes)
-    network = network.to(device)
     # Load pretrained model
     # TODO: Implement this
+    network = network.to(device)
+    network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
 
     # Optimizer
     # TODO: init from args
@@ -74,4 +89,8 @@ if __name__ == '__main__':
     args, args_text = get_args()
     init_directory(args, args_text)
     init_logger(args)
-    train(args)
+
+    if args.world_size == 1:
+        train(args=args)
+    else:
+        mp.spawn(train, nprocs=args.process, args=(args.world_size, args))
