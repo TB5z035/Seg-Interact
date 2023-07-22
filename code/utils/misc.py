@@ -5,6 +5,11 @@ import time
 
 import torch
 
+def to_device(data, device):
+    if isinstance(data, list) or isinstance(data, tuple):
+        return [d.to(device) if d is not None else None for d in data]
+    else:
+        return data.to(device)
 
 def get_time_str():
     return time.strftime('%Y%m%d_%H%M%S', time.localtime())
@@ -27,7 +32,7 @@ def init_directory(args, args_text):
 
 
 def init_logger(args):
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('[%(name)-20s][%(module)-10s L%(lineno)-3d][%(levelname)-8s] %(asctime)s %(msecs)03d:  %(message)s')
     fh = logging.FileHandler(osp.join(args.exp_dir, 'logs', f'{get_time_str()}.txt'), mode='w')
     ch = logging.StreamHandler()
     fh.setLevel(logging.INFO)

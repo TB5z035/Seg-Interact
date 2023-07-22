@@ -3,7 +3,7 @@ import numpy as np
 
 class SegmentMetric:
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, num_class, ignore_label, *args, **kwargs) -> None:
         pass
 
     def record(self, pred, target):
@@ -16,18 +16,20 @@ class SegmentMetric:
 class IoU(SegmentMetric):
     NAME = 'IoU'
 
-    def __init__(self, num_class, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, num_class, ignore_label, *args, **kwargs) -> None:
+        super().__init__(num_class, ignore_label, *args, **kwargs)
         self.num_class = num_class
         self.hist_stat = np.zeros((num_class, num_class), dtype=np.int64)
+        self.ignore_label = ignore_label
 
-    def record(self, pred, target, ignore_label=None):
+    def record(self, pred, target):
         """
         Args:
             pred: numpy.ndarray, shape: (B, N), int32
             target: numpy.ndarray, shape: (B, N), int32
             ignore_label: int32
         """
+        ignore_label = self.ignore_label
         flatten_pred = pred.flatten()
         flatten_target = target.flatten()
         mask = (flatten_target != ignore_label) & (flatten_pred != ignore_label)
@@ -39,9 +41,9 @@ class IoU(SegmentMetric):
         return ious
 
 
-class mIoU(SegmentMetric):
+class mIoU(IoU):
     NAME = 'mIoU'
 
     def calc(self):
         ious = super().calc()
-        return ious.nanmean().item()
+        return np.nanmean(ious)

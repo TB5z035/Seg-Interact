@@ -5,9 +5,10 @@ import torch
 from torch.utils.data import DataLoader
 
 from ..dataset import DATASETS
+from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger
+from .misc import get_device, init_directory, init_logger, to_device
 from .validate import validate
 
 device = get_device()
@@ -48,21 +49,20 @@ def train(args):
 
     global_iter = 0
     for epoch_idx in range(args.epochs):
-        train_one_epoch(network, optimizer, train_dataloader, criterion, epoch_idx, global_iter)
+        train_one_epoch(network, optimizer, train_dataloader, criterion, epoch_idx, global_iter, val_loader=val_dataloader)
         # Validate
-        val_loss, val_metrics = validate(network, val_dataloader, criterion)
+        val_loss, val_metrics = validate(network, val_dataloader, criterion, metrics=[mIoU, IoU])
 
     # Save model
     ...
 
 
-def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_idx, logging_freq=10):
+def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_idx, logging_freq=10, val_loader=None):
     model.train()
-    for i, (coords, feats, _, labels, _) in enumerate(train_loader):
+    for i, (inputs, labels, _) in enumerate(train_loader):
         optimizer.zero_grad()
-        coords, feats, labels = coords.to(device), feats.to(device), labels.to(device)
-        output = model(coords, feats)
-        loss = criterion(output.F, labels)
+        output = model(to_device(inputs, device))
+        loss = criterion(output, to_device(labels, device))
         loss.backward()
         optimizer.step()
         if i % logging_freq == 0:

@@ -117,7 +117,8 @@ class MinkUNetBase(ResNetBase):
                                              dimension=D)
         self.relu = ME.MinkowskiReLU(inplace=True)
 
-    def forward(self, coords, feats):
+    def forward(self, inputs):
+        coords, _, feats = inputs
         x = ME.SparseTensor(feats, coordinates=coords, device=get_device())
         out = self.conv0p1s1(x)
         out = self.bn0(out)
@@ -176,7 +177,7 @@ class MinkUNetBase(ResNetBase):
         out = ME.cat(out, out_p1)
         out = self.block8(out)
 
-        return self.final(out)
+        return self.final(out).F
 
 
 class MinkUNet14(MinkUNetBase):

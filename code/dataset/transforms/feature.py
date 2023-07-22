@@ -7,9 +7,10 @@ from . import register_transform, Transform
 @register_transform('point_chromatic_normalize')
 class PointChromaticNormalize(Transform):
 
-    def __call__(self, coords, faces, feats, labels, extra):
+    def __call__(self, inputs, labels, extra):
+        coords, faces, feats = inputs
         feats = (feats.astype(np.float32) - 128) / 128
-        return coords, faces, feats, labels, extra
+        return (coords, faces, feats), labels, extra
 
 
 @register_transform('point_chromatic_translation')
@@ -20,10 +21,11 @@ class PointChromaticTranslation(Transform):
         self.trans_range_ratio = trans_range_ratio
         self.scale = scale
 
-    def __call__(self, coords, faces, feats, labels, extra):  # 0.2
+    def __call__(self, inputs, labels, extra):  # 0.2
+        coords, faces, feats = inputs
         tr = np.clip(np.random.normal(0, self.scale), -1, 1) * 255 * self.trans_range_ratio
         feats[:, :3] = np.clip(tr + feats[:, :3], 0, 255)
-        return coords, faces, feats, labels, extra
+        return (coords, faces, feats), labels, extra
 
 
 @register_transform('point_chromatic_auto_contrast')
@@ -32,13 +34,14 @@ class ChromaticAutoContrast(Transform):
     def __init__(self, blend_factor=None):
         self.blend_factor = blend_factor
 
-    def __call__(self, coords, faces, feats, labels, extra):  # 0.2
+    def __call__(self, inputs, labels, extra):  # 0.2
+        coords, faces, feats = inputs
         lo = feats[:, :3].min(0, keepdims=True)
         hi = feats[:, :3].max(0, keepdims=True)
         contrast_feats = (feats[:, :3] - lo) / (hi - lo) * 255
         blend_factor = np.clip(np.random.uniform(0, 1), 0, 1) if self.blend_factor is None else self.blend_factor
         feats[:, :3] = (1 - blend_factor) * feats + blend_factor * contrast_feats
-        return coords, faces, feats, labels, extra
+        return (coords, faces, feats), labels, extra
 
 
 @register_transform('point_chromatic_jitter')
@@ -47,11 +50,12 @@ class ChromaticJitter(Transform):
     def __init__(self, std=0.01):
         self.std = std
 
-    def __call__(self, coords, faces, feats, labels, extra):  # 0.95
+    def __call__(self, inputs, labels, extra):  # 0.95
+        coords, faces, feats = inputs
         noise = np.random.randn(feats.shape[0], 3)
         noise *= self.std * 255
         feats[:, :3] = np.clip(noise + feats[:, :3], 0, 255)
-        return coords, faces, feats, labels, extra
+        return (coords, faces, feats), labels, extra
 
 
 @register_transform('hue_saturation_translation')
@@ -107,7 +111,8 @@ class HueSaturationTranslation(Transform):
         self.hue_max = hue_max
         self.saturation_max = saturation_max
 
-    def __call__(self, coords, faces, feats, labels, extra):
+    def __call__(self, inputs, labels, extra):
+        coords, faces, feats = inputs
         hsv = HueSaturationTranslation.rgb_to_hsv(feats[:, :3])
         hue_val = (2 * random.random() - 1) * self.hue_max
         sat_ratio = 1 + (2 * random.random() - 1) * self.saturation_max
@@ -115,4 +120,4 @@ class HueSaturationTranslation(Transform):
         hsv[..., 1] = np.clip(sat_ratio * hsv[..., 1], 0, 1)
         feats[:, :3] = np.clip(HueSaturationTranslation.hsv_to_rgb(hsv), 0, 255)
 
-        return coords, faces, feats, labels, extra
+        return (coords, faces, feats), labels, extra

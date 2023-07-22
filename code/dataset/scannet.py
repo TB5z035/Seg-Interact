@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import re
 from collections import namedtuple
+import logging
 
 import MinkowskiEngine as ME
 import numpy as np
@@ -13,6 +14,7 @@ from .transforms import TRANSFORMS, Compose, parse_transform
 from . import register_dataset
 
 is_valid_scene_id = re.compile(r'^scene\d{4}_\d{2}$').match
+logger = logging.getLogger('scannet')
 
 
 def read_plyfile(path, label_path=None):
@@ -165,6 +167,10 @@ class ScannetDataset(Dataset):
         return len([l for l in self.LABEL_PROTOCOL if l.train_id != 255])
 
     @property
+    def ignore_class(self):
+        return 255
+
+    @property
     def num_channel(self):
         return 3
 
@@ -255,16 +261,17 @@ class ScannetDataset(Dataset):
         scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
         coords, colors, faces, labels = self._load_ply(scene_path)
 
-        coords, colors, faces, labels, _ = self.transform(coords, colors[:, :3], faces, labels, None)
-        return coords, colors, faces, labels, None
+        (coords, faces, colors), labels, _ = self.transform((coords, faces, colors[:, :3]), labels, None)
+        colors /= 255.
+        return (coords, faces, colors), labels, None
 
     def __getitem__(self, index):
-        coords, colors, faces, labels, _ = self._prepare_item(index)
+        (coords, faces, colors), labels, _ = self._prepare_item(index)
         coords = torch.from_numpy(coords)
         colors = torch.from_numpy(colors)
         faces = torch.from_numpy(faces)
         labels = torch.from_numpy(labels.astype(np.int64))
-        return coords, colors, faces, labels, None
+        return (coords, faces, colors), labels, None
 
     def __len__(self):
         return len(self.scene_ids)
@@ -275,16 +282,30 @@ class ScanNetQuantized(ScannetDataset):
     VOXEL_SIZE = 0.02
 
     def _collate_fn(self, batch):
-        coords, feats, faces, labels, maps = list(zip(*batch))
+        inputs, labels, maps = list(zip(*batch))
+        coords, faces, feats = list(zip(*inputs))
         indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
         bcoords = torch.cat((indices, torch.cat(coords, 0)), -1)
         bfeats = torch.cat(feats, 0)
         bfaces = torch.cat(faces, 0)
         blabels = torch.cat(labels, 0)
-        return bcoords, bfeats, bfaces, blabels, maps
+
+        map_list, inv_map_list = list(zip(*maps))
+        map_cum_length = torch.cumsum(torch.tensor([0] + [len(m) for m in inv_map_list]), 0)
+        map_indices = torch.cat([torch.ones_like(c) * i for i, c in enumerate(map_list)], 0)
+        map_bias = map_cum_length[map_indices.to(int)]
+        bmap = torch.cat(map_list, 0) + map_bias
+
+        inv_map_cum_length = torch.cumsum(torch.tensor([0] + [len(m) for m in map_list]), 0)
+        inv_map_indices = torch.cat([torch.ones_like(c) * i for i, c in enumerate(inv_map_list)], 0)
+        inv_map_bias = inv_map_cum_length[inv_map_indices.to(int)]
+        binv_map = torch.cat(inv_map_list, 0) + inv_map_bias
+
+        return (bcoords, bfaces, bfeats), blabels, None
+    # (bmap, binv_map)
 
     def __getitem__(self, index) -> dict:
-        coords, colors, faces, labels, _ = self._prepare_item(index)
+        (coords, faces, colors), labels, _ = self._prepare_item(index)
         coords = torch.from_numpy(coords)
         colors = torch.from_numpy(colors)
         faces = torch.from_numpy(faces)
@@ -292,12 +313,12 @@ class ScanNetQuantized(ScannetDataset):
 
         coords = (coords / self.VOXEL_SIZE).to(torch.int32)
         unique_map, inverse_map = ME.utils.quantization.unique_coordinate_map(coords)
-        coords = coords[unique_map]
+        coords = coords[unique_map].to(torch.float64)
         colors = colors[unique_map]
         labels = labels[unique_map]
-        return coords, colors, faces, labels, (unique_map, inverse_map)
+        return (coords, faces, colors), labels, (unique_map, inverse_map)
 
-
+@register_dataset('scannet_quantized_limited')
 class ScanNetQuantizedLimited(ScanNetQuantized):
 
     def __init__(self, root, split='train', transform=None, limit=None):
@@ -319,4 +340,31 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         labels[mask] = 255
 
         coords, colors, faces, labels, _ = self.transform(coords, colors[:, :3], faces, labels, None)
-        return coords, colors, faces, labels, None
+        colors /= 255.
+        return (coords, faces, colors), labels, None
+
+class FastLoad(ScannetDataset):
+    def _load_ply(self, scene_path):
+        fast_scene_files = [i for i in os.listdir(scene_path) if i.endswith('_scene.npy')]
+        fast_label_files = [i for i in os.listdir(scene_path) if i.endswith('_labels.npy')]
+        if len(fast_scene_files) < 1:
+            logger.warning(f'FastLoad fails: No processed npy files found in {scene_path}')
+            return super()._load_ply(scene_path)
+        assert len(fast_scene_files) == 1, f'Found {len(fast_scene_files)} scene files in {scene_path}'
+        assert len(fast_label_files) == 1, f'Found {len(fast_label_files)} label files in {scene_path}'
+        scene_id = re.findall(r'(.*)_scene.npy', fast_scene_files[0])[0]
+
+        scene_obj = np.load(os.path.join(scene_path, f'{scene_id}_scene.npy'), allow_pickle=True)[None][0]
+        coords = scene_obj['coords']
+        colors = scene_obj['colors']
+        faces = scene_obj['faces']
+
+        if f'{scene_id}_labels.npy' in fast_label_files:
+            labels = np.load(os.path.join(scene_path, f'{scene_id}_labels.npy'), allow_pickle=True)[None][0]
+        else:
+            labels = None
+        return coords, colors, faces, self._convert_labels(labels)
+
+@register_dataset('scannet_quantized_fast')
+class ScanNetQuantizedFast(ScanNetQuantized, FastLoad):
+    pass
