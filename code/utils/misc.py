@@ -5,6 +5,7 @@ import time
 
 import torch
 import torch.distributed as dist
+import tensorboardX
 
 def to_device(data, device):
     if isinstance(data, list) or isinstance(data, tuple):
@@ -59,3 +60,10 @@ def init_logger(args):
         logging.basicConfig(level=logging.INFO, handlers=[fh, ch])
     else:
         logging.basicConfig(level=logging.WARNING, handlers=[ch])
+
+    if get_local_rank == 0:
+        writer = tensorboardX.SummaryWriter(log_dir=osp.join(args.exp_dir, 'tensorboard'))
+    else:
+        writer = tensorboardX.SummaryWriter(log_dir=osp.join(args.exp_dir, 'tensorboard'), comment=f'rank{get_local_rank()}')
+
+    args.writer = writer

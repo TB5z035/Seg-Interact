@@ -6,17 +6,17 @@ import torch
 from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 import torch.distributed as dist
+import tensorboardX
 
 from ..dataset import DATASETS
 from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size
 from .validate import validate
 
 device = get_device()
 logger = logging.getLogger('train')
-
 
 def train(local_rank=0, world_size=1, args=None):
     # Sanity check
@@ -31,6 +31,7 @@ def train(local_rank=0, world_size=1, args=None):
         torch.cuda.set_device(local_rank)
     logger.info(f"torch.distributed initialized: {dist.is_initialized()}")
     init_logger(args)
+    writer = args.writer if get_local_rank() == 0 else None
 
     # Dataset
     train_dataset = DATASETS[args.train_dataset](args.train_dataset_root, split='train', transform=args.train_transform)
@@ -73,17 +74,21 @@ def train(local_rank=0, world_size=1, args=None):
     # TODO: init from args
     criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
 
-    global_iter = 0
+    global_iter = [0]
     for epoch_idx in range(args.epochs):
         train_one_epoch(network, optimizer, train_dataloader, criterion, epoch_idx, global_iter, val_loader=val_dataloader)
         # Validate
         val_loss, val_metrics = validate(network, val_dataloader, criterion, metrics=[mIoU, IoU])
+        if writer is not None:
+            writer.add_scalar('val/loss', val_loss, global_iter)
+            for metric_name, metric_value in val_metrics.items():
+                writer.add_scalar(f'val/{metric_name}', metric_value, global_iter)
 
     # Save model
     ...
 
 
-def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_idx, logging_freq=10, val_loader=None):
+def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_idx, logging_freq=10, val_loader=None, writer=None):
     model.train()
     for i, (inputs, labels, _) in enumerate(train_loader):
         optimizer.zero_grad()
@@ -91,9 +96,14 @@ def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_i
         loss = criterion(output, to_device(labels, device))
         loss.backward()
         optimizer.step()
+        if get_world_size() > 1:
+            dist.all_reduce(loss, op=dist.ReduceOp.SUM)
+            loss /= get_world_size()
         if i % logging_freq == 0:
-            logger.info(f"Epoch: {epoch_idx:4d}, Iteration: {i:4d} / {len(train_loader):4d}, Loss: {loss.item()}")
-        iter_idx += 1
+            logger.info(f"Epoch: {epoch_idx:4d}, Iteration: {i:4d} / {len(train_loader):4d} [{iter_idx[0]:5d}], Loss: {loss.item()}")
+        if writer is not None:
+            writer.add_scalar('train/loss', loss.item(), iter_idx[0])
+        iter_idx[0] += 1
 
 
 if __name__ == '__main__':
