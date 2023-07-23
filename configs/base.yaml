@@ -9,7 +9,7 @@ model: MinkUNet34C
 train_dataset: 
   name: scannet_quantized_fast
   args:
-    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
+    root: /data15/tb5zhh/workspace/2023/ScanNetFast
     split: train
     transform:
       - elastic_distortion:
@@ -47,7 +47,7 @@ train_dataset:
 val_dataset:
   name: scannet_quantized_fast
   args: 
-    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
+    root: /data15/tb5zhh/workspace/2023/ScanNetFast
     split: val
     transform:
       - point_chromatic_normalize:
