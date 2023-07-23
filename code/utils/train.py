@@ -12,7 +12,7 @@ from ..dataset import DATASETS
 from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint
 from .validate import validate
 
 device = get_device()
@@ -67,22 +67,38 @@ def train(local_rank=0, world_size=1, args=None):
 
     # Model
     network = NETWORKS[args.model](train_dataset.num_channel, train_dataset.num_train_classes)
-    # Load pretrained model
-    # TODO: Implement this
     network = network.to(device)
+    # Load pretrained model
+    if args.resume:
+        logger.info(f"Resume training from {args.resume}")
+        ckpt = torch.load(args.resume, map_location=device)
+        network.load_state_dict(ckpt['network'])
+    elif args.pretrained:
+        logger.info(f"Load pretrained model from {args.pretrained}")
+        ckpt = torch.load(args.resume, map_location=device)
+        network.load_state_dict(ckpt['network'])
+        pass
     network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
     logger.info(f"Model: {args.model}")
 
     # Optimizer
     # TODO: init from args
     optimizer = torch.optim.Adam(network.parameters(), lr=1e-3)
+    if args.resume:
+        optimizer.load_state_dict(ckpt['optimizer'])
 
     # Criterion
     # TODO: init from args
     criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
 
-    global_iter = [0]
-    for epoch_idx in range(args.epochs):
+    if args.resume:
+        global_iter = [ckpt['iter']]
+        start_epoch = ckpt['epoch'] + 1
+    else:
+        global_iter = [0]
+        start_epoch = 0
+
+    for epoch_idx in range(start_epoch, args.epochs):
         train_one_epoch(network,
                         optimizer,
                         train_dataloader,
@@ -92,10 +108,12 @@ def train(local_rank=0, world_size=1, args=None):
                         val_loader=val_dataloader,
                         writer=writer)
         # Validate
-        validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
+        if epoch_idx % args.val_epoch_freq == 0:
+            validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
+        if epoch_idx % args.save_epoch_freq == 0:
+            save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler=None, name=f'epoch#{epoch_idx}')
 
-    # Save model
-    ...
+    save_checkpoint(network, args, epoch_idx=None, global_iter=None, optimizer=None, scheduler=None, name=f'last')
 
 
 def train_one_epoch(model,

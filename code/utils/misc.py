@@ -6,6 +6,7 @@ import time
 import torch
 import torch.distributed as dist
 import tensorboardX
+import yaml
 
 def to_device(data, device):
     if isinstance(data, list) or isinstance(data, tuple):
@@ -46,7 +47,7 @@ def init_directory(args, args_text):
 
 def init_logger(args):
     formatter = logging.Formatter('[%(name)-20s][%(module)-10s L%(lineno)-3d][%(levelname)-8s] %(asctime)s %(msecs)03d:  %(message)s')
-    fh = logging.FileHandler(osp.join(args.exp_dir, 'logs', f'{get_time_str()}.txt'), mode='w')
+    fh = logging.FileHandler(osp.join(args.exp_dir, 'logs', f'{args.start_time}.txt'), mode='w')
     ch = logging.StreamHandler()
     if get_local_rank() == 0:
         fh.setLevel(logging.INFO)
@@ -61,9 +62,20 @@ def init_logger(args):
     else:
         logging.basicConfig(level=logging.WARNING, handlers=[ch])
 
-    if get_local_rank == 0:
-        writer = tensorboardX.SummaryWriter(log_dir=osp.join(args.exp_dir, 'tensorboard'))
+    if get_local_rank() == 0:
+        writer = tensorboardX.SummaryWriter(log_dir=osp.join(args.exp_dir, 'tensorboard', args.start_time))
     else:
-        writer = tensorboardX.SummaryWriter(log_dir=osp.join(args.exp_dir, 'tensorboard'), comment=f'rank{get_local_rank()}')
+        writer = None
 
     args.writer = writer
+
+def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name='latest'):
+    if get_local_rank() == 0:
+        torch.save({
+            'network': network.module.state_dict(),
+            'epoch': epoch_idx if epoch_idx is not None else None,
+            'iter': iter_idx if iter_idx is not None else None,
+            'optimizer': optimizer.state_dict() if optimizer is not None else None,
+            'scheduler': scheduler.state_dict() if scheduler is not None else None,
+            'args': yaml.safe_dump(args.__dict__, default_flow_style=False) if args is not None else None,
+        }, f'{args.exp_dir}/checkpoints/{args.start_time}-{name}.pth')

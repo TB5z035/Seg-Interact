@@ -1,4 +1,8 @@
+pretrained:
+
 world_size: 4
+save_epoch_freq: 5
+val_epoch_freq: 5
 
 model: MinkUNet34C
 
@@ -10,8 +14,8 @@ val_dataset_root: /home/Guest/tb5zhh/datasets/ScanNet
 epochs: 100
 train_batch_size: 6
 train_num_workers: 3
-val_batch_size: 6
-val_num_workers: 3
+val_batch_size: 4
+val_num_workers: 2
 
 train_transform:
   - elastic_distortion:

@@ -3,6 +3,7 @@ import os.path as osp
 
 import yaml
 
+from .misc import get_time_str
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -24,6 +25,9 @@ def get_args():
     parser.add_argument("--val_batch_size", type=int, default=1)
     parser.add_argument("--val_num_workers", type=int, default=4)
 
+    parser.add_argument("--resume", type=str, default=None)
+    parser.add_argument("--pretrained", type=str, default=None)
+
     # Do we have a config file to parse?
     config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)
     config_parser.add_argument('-c',
@@ -39,6 +43,14 @@ def get_args():
         parser.set_defaults(**cfg)
     args = parser.parse_args(remaining)
     args.exp_dir = osp.join('experiments', osp.relpath(args_config.config, 'configs')[:-5])
+    args.start_time = get_time_str()
+    if args.resume:
+        resume_path = args.resume
+        import torch
+        cfg = yaml.safe_load(torch.load(args.resume, map_location='cpu')['args'])
+        parser.set_defaults(**cfg)
+        args = parser.parse_args(remaining)
+        args.resume = resume_path
 
     # Cache the args as a text string to save them in the output dir later
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
