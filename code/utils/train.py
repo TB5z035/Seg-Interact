@@ -27,18 +27,18 @@ def train(local_rank=0, world_size=1, args=None):
     # TODO: reproducibility
 
     # Distributed init
-    if world_size > 1:
-        dist.init_process_group(backend='nccl',
-                                rank=local_rank,
-                                world_size=world_size,
-                                init_method=f'tcp://localhost:{args.port}')
-        torch.cuda.set_device(local_rank)
+    # if world_size > 1:
+    dist.init_process_group(backend='nccl',
+                            rank=local_rank,
+                            world_size=world_size,
+                            init_method=f'tcp://localhost:{args.port}')
+    torch.cuda.set_device(local_rank)
     logger.info(f"torch.distributed initialized: {dist.is_initialized()}")
     writer = init_logger(args)
 
     # Dataset
-    train_dataset = DATASETS[args.train_dataset](args.train_dataset_root, split='train', transform=args.train_transform)
-    val_dataset = DATASETS[args.val_dataset](args.val_dataset_root, split='val', transform=args.val_transform)
+    train_dataset = DATASETS[args.train_dataset['name']](**args.train_dataset['args'])
+    val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
     logger.info(f"Train dataset: {args.train_dataset}, Val dataset: {args.val_dataset}")

@@ -266,7 +266,6 @@ class ScannetDataset(Dataset):
         coords, colors, faces, labels = self._load_ply(scene_path)
 
         (coords, faces, colors), labels, _ = self.transform((coords, faces, colors[:, :3]), labels, None)
-        colors /= 255.
         return (coords, faces, colors), labels, None
 
     def __getitem__(self, index):
@@ -327,7 +326,7 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
 
     def __init__(self, root, split='train', transform=None, limit=None):
         super().__init__(root, split, transform)
-        assert limit in ['20', '50', '100', '200']
+        assert limit in [20, 50, 100, 200], f'Invalid limit {limit}'
         assert osp.exists(osp.join(
             root, 'data_efficient')), 'Data efficient specifications ($(ROOT)/data_efficient) not found'
         self.limit = limit
@@ -339,12 +338,11 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
 
         scene_id = self.scene_ids[index]
         limit = self.limit_dict[scene_id]
-        mask = torch.ones_like(labels, dtype=torch.bool)
+        mask = np.ones_like(labels, dtype=bool)
         mask[limit] = False
         labels[mask] = 255
 
-        coords, colors, faces, labels, _ = self.transform(coords, colors[:, :3], faces, labels, None)
-        colors /= 255.
+        (coords, faces, colors), labels, _ = self.transform((coords, faces, colors[:, :3]), labels, None)
         return (coords, faces, colors), labels, None
 
 class FastLoad(ScannetDataset):
@@ -371,4 +369,8 @@ class FastLoad(ScannetDataset):
 
 @register_dataset('scannet_quantized_fast')
 class ScanNetQuantizedFast(ScanNetQuantized, FastLoad):
+    pass
+
+@register_dataset('scannet_quantized_limited_fast')
+class ScanNetQuantizedLimitedFast(ScanNetQuantizedLimited, FastLoad):
     pass
