@@ -112,7 +112,7 @@ def train(local_rank=0, world_size=1, args=None):
         if epoch_idx % args.save_epoch_freq == 0:
             save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler=None, name=f'epoch#{epoch_idx}')
 
-    save_checkpoint(network, args, epoch_idx=None, global_iter=None, optimizer=None, scheduler=None, name=f'last')
+    save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
 
 def train_one_epoch(model,
