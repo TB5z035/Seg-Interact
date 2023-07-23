@@ -1,9 +1,10 @@
+import random
 import logging
-import multiprocessing as mp
 
 import MinkowskiEngine as ME
 import torch
 from torch.utils.data import DataLoader
+import torch.multiprocessing as mp
 import torch.distributed as dist
 
 from ..dataset import DATASETS
@@ -18,41 +19,51 @@ logger = logging.getLogger('train')
 
 
 def train(local_rank=0, world_size=1, args=None):
+    # Sanity check
     assert args is not None
+    logger.warning(f"Local rank: {local_rank}, World size: {world_size}")
+
+    # TODO: reproducibility
     
     # Distributed init
     if world_size > 1:
-        dist.init_process_group(backend='nccl', rank=local_rank, world_size=world_size, init_method='env://')
+        dist.init_process_group(backend='nccl', rank=local_rank, world_size=world_size, init_method=f'tcp://localhost:{args.port}')
         torch.cuda.set_device(local_rank)
+    logger.info(f"torch.distributed initialized: {dist.is_initialized()}")
+    init_logger(args)
 
     # Dataset
     train_dataset = DATASETS[args.train_dataset](args.train_dataset_root, split='train', transform=args.train_transform)
     val_dataset = DATASETS[args.val_dataset](args.val_dataset_root, split='val', transform=args.val_transform)
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
+    logger.info(f"Train dataset: {args.train_dataset}, Val dataset: {args.val_dataset}")
 
     # DataLoader
     if world_size > 1:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=local_rank, shuffle=True)
     else:
         train_sampler = None
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.train_batch_size,
-                                  shuffle=True,
+                                  shuffle=(train_sampler is None),
                                   num_workers=args.train_num_workers,
-                                  sampler=torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=rank),
+                                  sampler=train_sampler,
                                   collate_fn=train_dataset._collate_fn)
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=args.val_batch_size,
                                 shuffle=False,
                                 num_workers=args.val_num_workers,
                                 collate_fn=val_dataset._collate_fn)
+    logger.info(f"Train dataloader: {len(train_dataloader)}, Val dataloader: {len(val_dataloader)}")
+
     # Model
     network = NETWORKS[args.model](train_dataset.num_channel, train_dataset.num_train_classes)
     # Load pretrained model
     # TODO: Implement this
     network = network.to(device)
     network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
+    logger.info(f"Model: {args.model}")
 
     # Optimizer
     # TODO: init from args
@@ -88,9 +99,10 @@ def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_i
 if __name__ == '__main__':
     args, args_text = get_args()
     init_directory(args, args_text)
-    init_logger(args)
+    args.port = random.randint(10000, 20000)
+    logger.info(args_text)
 
     if args.world_size == 1:
         train(args=args)
     else:
-        mp.spawn(train, nprocs=args.process, args=(args.world_size, args))
+        mp.spawn(train, nprocs=args.world_size, args=(args.world_size, args))

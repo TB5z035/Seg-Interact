@@ -1,4 +1,4 @@
-world_size: 2
+world_size: 4
 
 model: MinkUNet34C
 
