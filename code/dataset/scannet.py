@@ -163,6 +163,10 @@ class ScannetDataset(Dataset):
     ]
 
     @property
+    def train_class_names(self):
+        return [l.name for l in self.LABEL_PROTOCOL if l.train_id != 255]
+
+    @property
     def num_train_classes(self):
         return len([l for l in self.LABEL_PROTOCOL if l.train_id != 255])
 

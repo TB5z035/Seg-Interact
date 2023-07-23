@@ -18,16 +18,20 @@ from .validate import validate
 device = get_device()
 logger = logging.getLogger('train')
 
+
 def train(local_rank=0, world_size=1, args=None):
     # Sanity check
     assert args is not None
     logger.warning(f"Local rank: {local_rank}, World size: {world_size}")
 
     # TODO: reproducibility
-    
+
     # Distributed init
     if world_size > 1:
-        dist.init_process_group(backend='nccl', rank=local_rank, world_size=world_size, init_method=f'tcp://localhost:{args.port}')
+        dist.init_process_group(backend='nccl',
+                                rank=local_rank,
+                                world_size=world_size,
+                                init_method=f'tcp://localhost:{args.port}')
         torch.cuda.set_device(local_rank)
     logger.info(f"torch.distributed initialized: {dist.is_initialized()}")
     init_logger(args)
@@ -42,7 +46,10 @@ def train(local_rank=0, world_size=1, args=None):
 
     # DataLoader
     if world_size > 1:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=local_rank, shuffle=True)
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
+                                                                        num_replicas=world_size,
+                                                                        rank=local_rank,
+                                                                        shuffle=True)
     else:
         train_sampler = None
     train_dataloader = DataLoader(train_dataset,
@@ -76,19 +83,30 @@ def train(local_rank=0, world_size=1, args=None):
 
     global_iter = [0]
     for epoch_idx in range(args.epochs):
-        train_one_epoch(network, optimizer, train_dataloader, criterion, epoch_idx, global_iter, val_loader=val_dataloader)
+        train_one_epoch(network,
+                        optimizer,
+                        train_dataloader,
+                        criterion,
+                        epoch_idx,
+                        global_iter,
+                        val_loader=val_dataloader,
+                        writer=writer)
         # Validate
-        val_loss, val_metrics = validate(network, val_dataloader, criterion, metrics=[mIoU, IoU])
-        if writer is not None:
-            writer.add_scalar('val/loss', val_loss, global_iter)
-            for metric_name, metric_value in val_metrics.items():
-                writer.add_scalar(f'val/{metric_name}', metric_value, global_iter)
+        validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
 
     # Save model
     ...
 
 
-def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_idx, logging_freq=10, val_loader=None, writer=None):
+def train_one_epoch(model,
+                    optimizer,
+                    train_loader,
+                    criterion,
+                    epoch_idx,
+                    iter_idx,
+                    logging_freq=10,
+                    val_loader=None,
+                    writer=None):
     model.train()
     for i, (inputs, labels, _) in enumerate(train_loader):
         optimizer.zero_grad()
@@ -100,7 +118,9 @@ def train_one_epoch(model, optimizer, train_loader, criterion, epoch_idx, iter_i
             dist.all_reduce(loss, op=dist.ReduceOp.SUM)
             loss /= get_world_size()
         if i % logging_freq == 0:
-            logger.info(f"Epoch: {epoch_idx:4d}, Iteration: {i:4d} / {len(train_loader):4d} [{iter_idx[0]:5d}], Loss: {loss.item()}")
+            logger.info(
+                f"Epoch: {epoch_idx:4d}, Iteration: {i:4d} / {len(train_loader):4d} [{iter_idx[0]:5d}], Loss: {loss.item()}"
+            )
         if writer is not None:
             writer.add_scalar('train/loss', loss.item(), iter_idx[0])
         iter_idx[0] += 1
