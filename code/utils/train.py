@@ -11,6 +11,7 @@ import tensorboardX
 from ..dataset import DATASETS
 from .metrics import IoU, mIoU
 from ..network import NETWORKS
+from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
 from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint
 from .validate import validate
@@ -81,14 +82,16 @@ def train(local_rank=0, world_size=1, args=None):
     logger.info(f"Model: {args.model}")
 
     # Optimizer
-    # TODO: init from args
-    optimizer = torch.optim.Adam(network.parameters(), lr=1e-3)
+    optimizer = OPTIMIZERS[args.optimizer['name']](network.parameters(), **args.optimizer['args'])
     if args.resume:
         optimizer.load_state_dict(ckpt['optimizer'])
 
     # Criterion
     # TODO: init from args
     criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
+
+    # Scheduler
+    scheduler = SCHEDULERS[args.scheduler['name']](optimizer, **args.scheduler['args'])
 
     if args.resume:
         global_iter = [ckpt['iter']]
@@ -104,13 +107,14 @@ def train(local_rank=0, world_size=1, args=None):
                         criterion,
                         epoch_idx,
                         global_iter,
+                        scheduler=scheduler,
                         val_loader=val_dataloader,
                         writer=writer)
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
             validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
         if epoch_idx % args.save_epoch_freq == 0:
-            save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler=None, name=f'epoch#{epoch_idx}')
+            save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
 
     save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
@@ -122,6 +126,7 @@ def train_one_epoch(model,
                     epoch_idx,
                     iter_idx,
                     logging_freq=10,
+                    scheduler=None,
                     val_loader=None,
                     writer=None):
     model.train()
@@ -141,6 +146,8 @@ def train_one_epoch(model,
         if writer is not None:
             writer.add_scalar('train/loss', loss.item(), iter_idx[0])
         iter_idx[0] += 1
+    if scheduler is not None:
+        scheduler.step()
 
 
 if __name__ == '__main__':

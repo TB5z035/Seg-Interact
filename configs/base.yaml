@@ -9,7 +9,7 @@ model: MinkUNet34C
 train_dataset: 
   name: scannet_quantized_fast
   args:
-    root: /data15/tb5zhh/workspace/2023/ScanNetFast
+    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
     split: train
     transform:
       - elastic_distortion:
@@ -47,13 +47,25 @@ train_dataset:
 val_dataset:
   name: scannet_quantized_fast
   args: 
-    root: /data15/tb5zhh/workspace/2023/ScanNetFast
+    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
     split: val
     transform:
       - point_chromatic_normalize:
       - point_to_center:
 
-epochs: 100
+optimizer:
+  name: Adam
+  args:
+    lr: 0.001
+    weight_decay: 0.0001
+
+scheduler:
+  name: StepLR
+  args:
+    step_size: 20
+    gamma: 0.5
+
+epochs: 1000
 train_batch_size: 6
 train_num_workers: 3
 val_batch_size: 4
