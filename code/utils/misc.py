@@ -4,6 +4,7 @@ import os.path as osp
 import time
 
 import torch
+import torch.distributed as dist
 
 def to_device(data, device):
     if isinstance(data, list) or isinstance(data, tuple):
@@ -14,6 +15,17 @@ def to_device(data, device):
 def get_time_str():
     return time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
+def get_local_rank():
+    try:
+        return dist.get_rank()
+    except:
+        return 0
+    
+def get_world_size():
+    try:
+        return dist.get_world_size()
+    except:
+        return 1
 
 def get_device():
     # TODO add support for multi-gpu
@@ -35,8 +47,15 @@ def init_logger(args):
     formatter = logging.Formatter('[%(name)-20s][%(module)-10s L%(lineno)-3d][%(levelname)-8s] %(asctime)s %(msecs)03d:  %(message)s')
     fh = logging.FileHandler(osp.join(args.exp_dir, 'logs', f'{get_time_str()}.txt'), mode='w')
     ch = logging.StreamHandler()
-    fh.setLevel(logging.INFO)
-    ch.setLevel(logging.INFO)
+    if get_local_rank() == 0:
+        fh.setLevel(logging.INFO)
+        ch.setLevel(logging.INFO)
+    else:
+        fh.setLevel(logging.WARNING)
+        ch.setLevel(logging.WARNING)
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
-    logging.basicConfig(level=logging.INFO, handlers=[fh, ch])
+    if get_local_rank() == 0:
+        logging.basicConfig(level=logging.INFO, handlers=[fh, ch])
+    else:
+        logging.basicConfig(level=logging.WARNING, handlers=[ch])

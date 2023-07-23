@@ -1,3 +1,5 @@
+world_size: 4
+
 model: MinkUNet34C
 
 train_dataset: scannet_quantized_fast
@@ -6,10 +8,10 @@ val_dataset: scannet_quantized_fast
 val_dataset_root: /home/Guest/tb5zhh/datasets/ScanNet
 
 epochs: 100
-train_batch_size: 8
-train_num_workers: 4
-val_batch_size: 8 # error when val_batch_size > 1
-val_num_workers: 4
+train_batch_size: 6
+train_num_workers: 3
+val_batch_size: 6
+val_num_workers: 3
 
 train_transform:
   - elastic_distortion:
