@@ -34,8 +34,7 @@ def train(local_rank=0, world_size=1, args=None):
                                 init_method=f'tcp://localhost:{args.port}')
         torch.cuda.set_device(local_rank)
     logger.info(f"torch.distributed initialized: {dist.is_initialized()}")
-    init_logger(args)
-    writer = args.writer if get_local_rank() == 0 else None
+    writer = init_logger(args)
 
     # Dataset
     train_dataset = DATASETS[args.train_dataset](args.train_dataset_root, split='train', transform=args.train_transform)

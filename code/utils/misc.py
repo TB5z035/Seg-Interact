@@ -67,7 +67,7 @@ def init_logger(args):
     else:
         writer = None
 
-    args.writer = writer
+    return writer
 
 def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name='latest'):
     if get_local_rank() == 0:
