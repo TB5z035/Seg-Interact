@@ -47,7 +47,7 @@ def init_directory(args, args_text):
 
 def init_logger(args):
     formatter = logging.Formatter('[%(name)-20s][%(module)-10s L%(lineno)-3d][%(levelname)-8s] %(asctime)s %(msecs)03d:  %(message)s')
-    fh = logging.FileHandler(osp.join(args.exp_dir, 'logs', f'{args.start_time}.txt'), mode='w')
+    fh = logging.FileHandler(osp.join(args.exp_dir, 'logs', f'{args.start_time}.txt'), mode='a')
     ch = logging.StreamHandler()
     if get_local_rank() == 0:
         fh.setLevel(logging.INFO)

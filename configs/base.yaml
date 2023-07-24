@@ -1,5 +1,7 @@
 pretrained:
 
+seed: 42
+
 world_size: 4
 save_epoch_freq: 5
 val_epoch_freq: 5
@@ -62,7 +64,7 @@ optimizer:
 scheduler:
   name: StepLR
   args:
-    step_size: 20
+    step_size: 200
     gamma: 0.5
 
 epochs: 1000
