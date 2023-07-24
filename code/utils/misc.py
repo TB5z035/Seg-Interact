@@ -37,10 +37,11 @@ def get_device():
 def init_directory(args, args_text):
     os.makedirs(args.exp_dir, exist_ok=True)
     os.makedirs(osp.join(args.exp_dir, 'logs'), exist_ok=True)
-    os.makedirs(osp.join(args.exp_dir, 'checkpoints'), exist_ok=True)
+    os.makedirs(osp.join(args.exp_dir, 'checkpoints', args.start_time), exist_ok=True)
     os.makedirs(osp.join(args.exp_dir, 'visuals'), exist_ok=True)
-    os.makedirs(osp.join(args.exp_dir, 'tensorboard'), exist_ok=True)
-    with open(osp.join(args.exp_dir, 'config.yaml'), 'w') as f:
+    os.makedirs(osp.join(args.exp_dir, 'tensorboard', args.start_time), exist_ok=True)
+    os.makedirs(osp.join(args.exp_dir, 'configs'), exist_ok=True)
+    with open(osp.join(args.exp_dir, 'configs', f'{args.start_time}.yaml'), 'w') as f:
         f.write(args_text)
 
 
@@ -78,4 +79,4 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
             'optimizer': optimizer.state_dict() if optimizer is not None else None,
             'scheduler': scheduler.state_dict() if scheduler is not None else None,
             'args': yaml.safe_dump(args.__dict__, default_flow_style=False) if args is not None else None,
-        }, f'{args.exp_dir}/checkpoints/{args.start_time}-{name}.pth')
+        }, f'{args.exp_dir}/checkpoints/{args.start_time}/{name}.pth')

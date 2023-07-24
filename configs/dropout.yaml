@@ -1,0 +1,75 @@
+pretrained:
+
+seed: 42
+
+world_size: 4
+save_epoch_freq: 5
+val_epoch_freq: 5
+
+model: MinkUNet34CUNC
+
+train_dataset: 
+  name: scannet_quantized_fast
+  args:
+    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
+    split: train
+    transform:
+      - elastic_distortion:
+          distortion_params: 
+            - - 0.2
+              - 0.4
+            - - 0.8
+              - 1.6
+      - random_dropout:
+          dropout_ratio: 0.2
+      - random_apply:
+          prob: 0.2
+          inner_t: point_chromatic_auto_contrast
+      - random_apply:
+          prob: 0.2
+          inner_t: point_chromatic_translation
+      - random_apply:
+          prob: 0.95
+          inner_t: point_chromatic_jitter
+      - random_horizontal_flip:
+          upright_axis: 'z'
+      - random_scale:
+          scale_rng: 
+            - 0.9
+            - 1.1
+      - random_rotation:
+          angle_v: 3
+          angle_h: 180
+          upright_axis: 'z'
+      - point_chromatic_normalize: 
+      - point_to_center:
+      - point_cloud_size_limit:
+          max_num: 200000
+
+val_dataset:
+  name: scannet_quantized_fast
+  args: 
+    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
+    split: val
+    transform:
+      - point_chromatic_normalize:
+      - point_to_center:
+
+optimizer:
+  name: Adam
+  args:
+    lr: 0.001
+    weight_decay: 0.0001
+
+scheduler:
+  name: StepLR
+  args:
+    step_size: 200
+    gamma: 0.5
+
+epochs: 1000
+train_batch_size: 6
+train_num_workers: 3
+val_batch_size: 4
+val_num_workers: 2
+  
