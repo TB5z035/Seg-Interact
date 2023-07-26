@@ -39,6 +39,7 @@ def train(local_rank=0, world_size=1, args=None):
 
     # Dataset
     train_dataset = DATASETS[args.train_dataset['name']](**args.train_dataset['args'])
+
     val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
@@ -52,6 +53,7 @@ def train(local_rank=0, world_size=1, args=None):
                                                                         shuffle=True)
     else:
         train_sampler = None
+
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.train_batch_size,
                                   shuffle=(train_sampler is None),
@@ -101,7 +103,7 @@ def train(local_rank=0, world_size=1, args=None):
         start_epoch = 0
 
     for epoch_idx in range(start_epoch, args.epochs):
-        train_one_epoch(network,
+        '''train_one_epoch(network,
                         optimizer,
                         train_dataloader,
                         criterion,
@@ -109,7 +111,7 @@ def train(local_rank=0, world_size=1, args=None):
                         global_iter,
                         scheduler=scheduler,
                         val_loader=val_dataloader,
-                        writer=writer)
+                        writer=writer)'''
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
             validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
@@ -130,6 +132,7 @@ def train_one_epoch(model,
                     val_loader=None,
                     writer=None):
     model.train()
+
     for i, (inputs, labels, _) in enumerate(train_loader):
         optimizer.zero_grad()
         output = model(to_device(inputs, device))
