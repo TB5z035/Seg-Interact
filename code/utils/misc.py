@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import time
 
+import numpy as np
 import torch
 import torch.distributed as dist
 import tensorboardX
@@ -79,3 +80,14 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
             'scheduler': scheduler.state_dict() if scheduler is not None else None,
             'args': yaml.safe_dump(args.__dict__, default_flow_style=False) if args is not None else None,
         }, f'{args.exp_dir}/checkpoints/{args.start_time}-{name}.pth')
+
+def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epoch_idx) -> None:
+    assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
+    scene_path = osp.join(dataset_path, 'scans', scene_id)
+    # os.makedirs(scene_path, exist_ok=True)
+    print(labels)
+    print(osp.join(scene_path, f'{scene_id}_labels_epoch_{str(epoch_idx)}.npy'))
+    np.save(
+        osp.join(scene_path, f'{scene_id}_labels_epoch_{str(epoch_idx)}.npy'),
+        labels
+    )

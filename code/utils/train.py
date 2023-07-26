@@ -7,13 +7,14 @@ from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import tensorboardX
+import numpy as np
 
 from ..dataset import DATASETS
 from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, save_pseudo_labels
 from .validate import validate
 
 device = get_device()
@@ -103,7 +104,7 @@ def train(local_rank=0, world_size=1, args=None):
         start_epoch = 0
 
     for epoch_idx in range(start_epoch, args.epochs):
-        '''train_one_epoch(network,
+        train_one_epoch(network,
                         optimizer,
                         train_dataloader,
                         criterion,
@@ -111,7 +112,7 @@ def train(local_rank=0, world_size=1, args=None):
                         global_iter,
                         scheduler=scheduler,
                         val_loader=val_dataloader,
-                        writer=writer)'''
+                        writer=writer)
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
             validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
@@ -133,9 +134,26 @@ def train_one_epoch(model,
                     writer=None):
     model.train()
 
-    for i, (inputs, labels, _) in enumerate(train_loader):
+    for i, (inputs, labels, extras) in enumerate(train_loader):
         optimizer.zero_grad()
         output = model(to_device(inputs, device))
+
+        _, preds = torch.topk(output, 1)
+        preds = torch.squeeze(preds.t()).cpu()
+        preds = preds.numpy()
+        for pred in preds:
+            if pred is 20:
+                pred = 255
+
+        scenes = set(extras)
+        prev_scene_count = 0
+        for scene in scenes:
+            this_scene_count = extras.count(scene)
+            scene_preds = preds[prev_scene_count:prev_scene_count+this_scene_count]
+            label_ids = train_loader.dataset.label_trainid_2_id(scene_preds)
+            save_pseudo_labels(label_ids, args.train_dataset['args']['root'], scene, epoch_idx)
+            prev_scene_count += this_scene_count
+
         loss = criterion(output, to_device(labels, device))
         loss.backward()
         optimizer.step()
