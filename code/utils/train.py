@@ -17,7 +17,7 @@ from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
 from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clear_paths
 from .validate import validate
-from .psuedo_update import label_update
+from .psuedo_update import label_update, get_n_update_count
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -115,10 +115,10 @@ def train(local_rank=0, world_size=1, args=None):
         start_epoch = 0
 
     # Pseudo Label Update
-    inference_iter = 0
     if args.labeling_inference:
-        label_update(args, network, train_dataloader, point_criterion, inference_iter)
-        # inference_iter += 1
+        assert args.inference_count_path is not None, 'inference count path not specified'
+        inference_count = get_n_update_count(args.inference_count_path, reset=args.inference_count_reset)
+        label_update(args, network, train_dataloader, point_criterion, inference_count)
         return
 
     for epoch_idx in range(start_epoch, args.epochs):

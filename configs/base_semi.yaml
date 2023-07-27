@@ -71,4 +71,5 @@ train_batch_size: 6
 train_num_workers: 3
 val_batch_size: 4
 val_num_workers: 2
-  
+seed: 0
+inference_count_path: '/home/Guest/caiz/Seg-Interact/utils'

@@ -43,9 +43,17 @@ def get_args():
 
     # Inference
     parser.add_argument("--labeling_inference",
-                        type=bool,
                         default=False,
-                        help='whether to update/generate and save pseudo labels')
+                        action='store_true',
+                        help='whether to perform labeling update inference')
+    parser.add_argument("--inference_count_reset",
+                        default=False,
+                        action='store_true',
+                        help='whether to reset inference count')
+    parser.add_argument("--inference_count_path",
+                        type=str,
+                        default='',
+                        help='path to inference count file')
     parser.add_argument("--update_points_num",
                         type=int,
                         default=200,

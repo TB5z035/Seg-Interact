@@ -52,7 +52,6 @@ def get_n_update_count(count_file_path: str, reset: bool):
         np.save(count_path, current_count+1)
         return int(current_count)
     else:
-        print('in else')
         np.save(count_path, np.array(0))
         return 0
 
