@@ -292,22 +292,26 @@ def distort(img, v, **__):
         for horizontal_tile in range(horizontal_tiles):
             if vertical_tile == (vertical_tiles - 1) and horizontal_tile == (horizontal_tiles - 1):
                 dimensions.append([
-                    horizontal_tile * width_of_square, vertical_tile * height_of_square, width_of_last_square + (horizontal_tile * width_of_square),
+                    horizontal_tile * width_of_square, vertical_tile * height_of_square,
+                    width_of_last_square + (horizontal_tile * width_of_square),
                     height_of_last_square + (height_of_square * vertical_tile)
                 ])
             elif vertical_tile == (vertical_tiles - 1):
                 dimensions.append([
-                    horizontal_tile * width_of_square, vertical_tile * height_of_square, width_of_square + (horizontal_tile * width_of_square),
+                    horizontal_tile * width_of_square, vertical_tile * height_of_square,
+                    width_of_square + (horizontal_tile * width_of_square),
                     height_of_last_square + (height_of_square * vertical_tile)
                 ])
             elif horizontal_tile == (horizontal_tiles - 1):
                 dimensions.append([
-                    horizontal_tile * width_of_square, vertical_tile * height_of_square, width_of_last_square + (horizontal_tile * width_of_square),
+                    horizontal_tile * width_of_square, vertical_tile * height_of_square,
+                    width_of_last_square + (horizontal_tile * width_of_square),
                     height_of_square + (height_of_square * vertical_tile)
                 ])
             else:
                 dimensions.append([
-                    horizontal_tile * width_of_square, vertical_tile * height_of_square, width_of_square + (horizontal_tile * width_of_square),
+                    horizontal_tile * width_of_square, vertical_tile * height_of_square,
+                    width_of_square + (horizontal_tile * width_of_square),
                     height_of_square + (height_of_square * vertical_tile)
                 ])
     last_column = []
@@ -353,8 +357,9 @@ def zoom(img, v, **__):
     image_zoomed = img.resize((int(round(img.size[0] * v)), int(round(img.size[1] * v))), resample=PIL.Image.BICUBIC)
     w_zoomed, h_zoomed = image_zoomed.size
 
-    return image_zoomed.crop((math.floor((float(w_zoomed) / 2) - (float(w) / 2)), math.floor((float(h_zoomed) / 2) - (float(h) / 2)),
-                              math.floor((float(w_zoomed) / 2) + (float(w) / 2)), math.floor((float(h_zoomed) / 2) + (float(h) / 2))))
+    return image_zoomed.crop(
+        (math.floor((float(w_zoomed) / 2) - (float(w) / 2)), math.floor((float(h_zoomed) / 2) - (float(h) / 2)),
+         math.floor((float(w_zoomed) / 2) + (float(w) / 2)), math.floor((float(h_zoomed) / 2) + (float(h) / 2))))
 
 
 def erase(img, v, **__):
@@ -400,7 +405,10 @@ def skew(img, v, **__):
     perspective_skew_coefficients_matrix = np.dot(np.linalg.pinv(A), B)
     perspective_skew_coefficients_matrix = np.array(perspective_skew_coefficients_matrix).reshape(8)
 
-    return img.transform(img.size, PIL.Image.PERSPECTIVE, perspective_skew_coefficients_matrix, resample=PIL.Image.BICUBIC)
+    return img.transform(img.size,
+                         PIL.Image.PERSPECTIVE,
+                         perspective_skew_coefficients_matrix,
+                         resample=PIL.Image.BICUBIC)
 
 
 def blur(img, kernel_size, **__):
@@ -488,7 +496,8 @@ class AutoAugmentOp:
                 if 'std' in kwargs[k]:
                     kwargs[k] = random.gauss(kwargs[k]['val'], kwargs[k]['std'])
                 elif 'range' in kwargs[k]:
-                    kwargs[k] = random.uniform(kwargs[k]['val'] - kwargs[k]['range'], kwargs[k]['val'] + kwargs[k]['range'])
+                    kwargs[k] = random.uniform(kwargs[k]['val'] - kwargs[k]['range'],
+                                               kwargs[k]['val'] + kwargs[k]['range'])
         if random.random() > self.prob:
             return img
         return self.aug_fn(img, **kwargs)
@@ -687,7 +696,10 @@ class RandomErasing:
                 if w < img_w and h < img_h:
                     top = random.randint(0, img_h - h)
                     left = random.randint(0, img_w - w)
-                    img[:, top:top + h, left:left + w] = _get_pixels(self.per_pixel, self.rand_color, (chan, h, w), dtype=dtype, device=self.device)
+                    img[:, top:top + h, left:left + w] = _get_pixels(self.per_pixel,
+                                                                     self.rand_color, (chan, h, w),
+                                                                     dtype=dtype,
+                                                                     device=self.device)
                     break
 
     def __call__(self, input):

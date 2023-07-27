@@ -2,12 +2,13 @@ pretrained:
 
 seed: 42
 
-world_size: 4
+world_size: 1
 save_epoch_freq: 10
 val_epoch_freq: 2
 
 model: lightvit_posembed_base
-
+metrics: 
+    - Acc
 train_dataset: 
   name: multiview
   args:

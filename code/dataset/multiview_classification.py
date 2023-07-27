@@ -1,4 +1,3 @@
-
 import os
 import os.path as osp
 import re
@@ -15,6 +14,7 @@ from . import register_dataset
 
 is_valid_scene_id = re.compile(r'^scene\d{4}_\d{2}$').match
 logger = logging.getLogger('multiview')
+
 
 @register_dataset('multiview')
 class MultiviewDataset(Dataset):
@@ -39,21 +39,22 @@ class MultiviewDataset(Dataset):
         └── (the same)
 
     """
+
     @property
     def num_train_classes(self):
         return len(self.classes)
-    
+
     @property
     def num_channel(self):
         return 3
-    
+
     @property
     def train_class_names(self):
         return self.classes
-    
+
     def ignore_class(self):
         return None
-    
+
     def find_classes(self, classes):
         class_to_idx = {classes[i]: i for i in range(len(classes))}
 
@@ -82,7 +83,12 @@ class MultiviewDataset(Dataset):
         self.x = []
         self.y = []
         if split == 'train':
-            transform = multiview_transform.build_train_transforms(augmentation, UV, reprob, remode, interpolation, inplace=True)[0]
+            transform = multiview_transform.build_train_transforms(augmentation,
+                                                                   UV,
+                                                                   reprob,
+                                                                   remode,
+                                                                   interpolation,
+                                                                   inplace=True)[0]
         else:
             transform = multiview_transform.build_val_transforms(UV, interpolation)[0]
         self.root = os.path.join(root, split)
@@ -234,7 +240,7 @@ class MultiviewDataset(Dataset):
         # sizes = np.array(sizes)
         # sizes = torch.from_numpy(sizes).float()
 
-        return views, self.y[index], []
+        return views, self.y[index], {}
 
     def Cut_mix(self, img, view_idx, range):
         # original image

@@ -6,6 +6,7 @@ from timm.models.layers import DropPath, lecun_normal_, trunc_normal_
 from einops import rearrange, repeat
 from . import register_network
 
+
 class PositionalEmbed(nn.Module):
 
     def __init__(self, d_model) -> None:
@@ -174,7 +175,15 @@ def get_relative_position_index(win_h: int, win_w: int) -> torch.Tensor:
 
 class LightViTAttention(nn.Module):
 
-    def __init__(self, dim, num_tokens=1, num_heads=8, window_size=7, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
+    def __init__(self,
+                 dim,
+                 num_tokens=1,
+                 num_heads=8,
+                 window_size=7,
+                 qkv_bias=False,
+                 qk_scale=None,
+                 attn_drop=0.,
+                 proj_drop=0.):
         super().__init__()
         self.num_heads = num_heads
         head_dim = dim // num_heads
@@ -190,7 +199,8 @@ class LightViTAttention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop) if proj_drop > 0 else nn.Identity()
 
         # Define a parameter table of relative position bias, shape: 2*Wh-1 * 2*Ww-1, nH
-        self.relative_position_bias_table = nn.Parameter(torch.zeros((2 * window_size - 1) * (2 * window_size - 1), num_heads))
+        self.relative_position_bias_table = nn.Parameter(
+            torch.zeros((2 * window_size - 1) * (2 * window_size - 1), num_heads))
 
         # Get pair-wise relative position index for each token inside the window
         self.register_buffer("relative_position_index", get_relative_position_index(window_size, window_size).view(-1))
@@ -202,7 +212,8 @@ class LightViTAttention(nn.Module):
         Returns:
             relative_position_bias (torch.Tensor): Relative positional bias.
         """
-        relative_position_bias = self.relative_position_bias_table[self.relative_position_index].view(self.attn_area, self.attn_area, -1)
+        relative_position_bias = self.relative_position_bias_table[self.relative_position_index].view(
+            self.attn_area, self.attn_area, -1)
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
         return relative_position_bias.unsqueeze(0)
 
@@ -282,7 +293,8 @@ class LightViTAttention(nn.Module):
         x_glb = self.forward_global_aggregation(q_glb, k_img, v_img)
 
         # global broadcast
-        k_glb, v_glb = self.kv_global(x_glb).view(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).unbind(0)
+        k_glb, v_glb = self.kv_global(x_glb).view(B, -1, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1,
+                                                                                                         4).unbind(0)
 
         x_img = x_img + self.forward_global_broadcast(q_img, k_glb, v_glb)
         x = torch.cat([x_glb, x_img], dim=1)
@@ -374,7 +386,8 @@ class CrossAttn(nn.Module):
 
         self.to_qkv = nn.Linear(dim, inner_dim * 2, bias=False)
 
-        self.to_out = nn.Sequential(nn.Linear(inner_dim, dim), nn.LayerNorm(dim), nn.Dropout(dropout)) if project_out else nn.Identity()
+        self.to_out = nn.Sequential(nn.Linear(inner_dim, dim), nn.LayerNorm(dim),
+                                    nn.Dropout(dropout)) if project_out else nn.Identity()
 
     def forward(self, KV, Q):
         qkv = self.to_qkv(KV).chunk(2, dim=-1)
@@ -427,13 +440,17 @@ class LightViT(nn.Module):
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
         act_layer = act_layer or nn.GELU
 
-        self.patch_embed = embed_layer(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dims[0])
+        self.patch_embed = embed_layer(img_size=img_size,
+                                       patch_size=patch_size,
+                                       in_chans=in_chans,
+                                       embed_dim=embed_dims[0])
 
         self.global_token = nn.Parameter(torch.zeros(1, self.num_tokens, embed_dims[0]))
 
         stages = []
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(num_layers))]  # stochastic depth decay rule
-        for stage, (embed_dim, num_layer, num_head, mlp_ratio) in enumerate(zip(embed_dims, num_layers, num_heads, mlp_ratios)):
+        for stage, (embed_dim, num_layer, num_head,
+                    mlp_ratio) in enumerate(zip(embed_dims, num_layers, num_heads, mlp_ratios)):
             blocks = []
             if stage > 0:
                 # downsample
@@ -600,13 +617,17 @@ class LightViT_multiview(nn.Module):
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
         act_layer = act_layer or nn.GELU
 
-        self.patch_embed = embed_layer(img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dims[0])
+        self.patch_embed = embed_layer(img_size=img_size,
+                                       patch_size=patch_size,
+                                       in_chans=in_chans,
+                                       embed_dim=embed_dims[0])
 
         self.global_token = nn.Parameter(torch.ones(1, self.num_tokens, embed_dims[0]))
 
         stages = []
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(num_layers))]  # stochastic depth decay rule
-        for stage, (embed_dim, num_layer, num_head, mlp_ratio) in enumerate(zip(embed_dims, num_layers, num_heads, mlp_ratios)):
+        for stage, (embed_dim, num_layer, num_head,
+                    mlp_ratio) in enumerate(zip(embed_dims, num_layers, num_heads, mlp_ratios)):
             blocks = []
             if stage > 0:
                 # downsample
@@ -644,7 +665,11 @@ class LightViT_multiview(nn.Module):
             if self.with_map_token:
                 self.map_token = nn.Parameter(torch.ones(1, 30, 1280))
         else:
-            self.fuse_conv = nn.Conv1d((num_views + 1) if self.sizetoken else num_views, 1, kernel_size=1, stride=1, bias=False)
+            self.fuse_conv = nn.Conv1d((num_views + 1) if self.sizetoken else num_views,
+                                       1,
+                                       kernel_size=1,
+                                       stride=1,
+                                       bias=False)
         self.head = nn.Linear(neck_dim, num_classes) if num_classes > 0 else nn.Identity()
 
         if self.with_uniform_loss:
@@ -992,4 +1017,3 @@ def lightvit_sizetoken_ver3_base(pretrained=False, **kwargs):
                         **kwargs)
     model = LightViT_multiview(**model_kwargs)
     return model
-
