@@ -10,10 +10,7 @@ a = np.load('/home/Guest/caiz/Seg-Interact/configs/testing/my.npy')
 print(a)'''
 
 a = np.array([2,1,5,3,4])
-k = 3
-
-c = np.argpartition(a,k-1)[:k]
-d = a[c]
+c = np.array([1,2,3,4,5,6])
+b = np.array([0,1,2])
+a[b] = c[b]
 print(a)
-print(c)
-print(np.sort(d))

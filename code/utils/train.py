@@ -86,10 +86,7 @@ def train(local_rank=0, world_size=1, args=None):
         network.load_state_dict(ckpt['network'])
     elif args.pretrained:
         logger.info(f"Load pretrained model from {args.pretrained}")
-        if args.pretrained_ckpt is not None:
-            ckpt = torch.load(args.pretrained_ckpt, map_location=device)
-        else: 
-            ckpt = torch.load(args.resume, map_location=device)
+        ckpt = torch.load(args.pretrained, map_location=device)
         network.load_state_dict(ckpt['network'])
         pass
     network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)

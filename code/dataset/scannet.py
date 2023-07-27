@@ -271,7 +271,7 @@ class ScannetDataset(Dataset):
             return None
         train_labels = np.zeros_like(train_ids)
         for l in self.LABEL_PROTOCOL:
-            if l.train_id is not 255:
+            if l.train_id != 255:
                 train_labels[train_ids == l.train_id] = l.id
         return train_labels
 
@@ -341,7 +341,7 @@ class ScanNetQuantized(ScannetDataset):
         coords = coords[unique_map].to(torch.float64)
         colors = colors[unique_map]
         labels = labels[unique_map]
-
+ 
         return (coords, faces, colors), labels, {'maps': (unique_map, inverse_map), 'scene_id': self.scene_ids[index]}
     
 

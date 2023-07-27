@@ -27,10 +27,10 @@ def get_args():
 
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--pretrained", type=str, default=None)
-    parser.add_argument("--pretrained_ckpt", type=str, default=None, help='path for pretrained checkpoints')
     parser.add_argument("--labeling_inference", type=bool, default=False, help='whether to update/generate and save pseudo labels')
     parser.add_argument("--update_points_num", type=int, default=200, help='number of points to update after each inference')
     # parser.add_argument("--label_update_epoch", type=int, default=2)
+    parser.add_argument("--seed", type=int, default=0)
 
     # Do we have a config file to parse?
     config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)

@@ -15,14 +15,17 @@ def label_update(args, model, train_loader, criterion, epoch):
         model.eval()
         with torch.no_grad():
             for i, (inputs, labels, extras) in enumerate(tqdm(train_loader)):
-                output = model(to_device(inputs, device))
+                inv_map = extras['maps'][1]
                 gt_labels = extras['gt_labels']
-                point_loss = criterion(output, to_device(gt_labels, device)).cpu()
-                point_loss = point_loss.numpy()
+                output = model(to_device(inputs, device))
+                point_loss = criterion(output, to_device(gt_labels, device))
+                point_loss = point_loss[inv_map]
+                point_loss = point_loss.cpu().numpy()
 
                 _, preds = torch.topk(output, 1)
-                preds = torch.squeeze(preds.t()).cpu()
-                preds = preds.numpy()
+                preds = torch.squeeze(preds.t())
+                preds = preds[inv_map]
+                preds = preds.cpu().numpy()
                 for pred in preds:
                     if pred >= 20:
                         pred = 255
@@ -40,4 +43,3 @@ def label_update(args, model, train_loader, criterion, epoch):
 
 
 # if __name__ == "__main__":
-
