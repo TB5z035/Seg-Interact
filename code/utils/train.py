@@ -1,7 +1,7 @@
 import random
 import logging
 
-import MinkowskiEngine as ME
+# import MinkowskiEngine as ME
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -50,7 +50,6 @@ def train(local_rank=0, world_size=1, args=None):
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
     logger.info(f"Train dataset: {args.train_dataset}, Val dataset: {args.val_dataset}")
-
     # DataLoader
     if world_size > 1:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
@@ -64,12 +63,12 @@ def train(local_rank=0, world_size=1, args=None):
                                   shuffle=(train_sampler is None),
                                   num_workers=args.train_num_workers,
                                   sampler=train_sampler,
-                                  collate_fn=train_dataset._collate_fn)
+                                  collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=args.val_batch_size,
                                 shuffle=False,
                                 num_workers=args.val_num_workers,
-                                collate_fn=val_dataset._collate_fn)
+                                collate_fn=val_dataset._collate_fn if hasattr(val_dataset, '_collate_fn') else None)
     logger.info(f"Train dataloader: {len(train_dataloader)}, Val dataloader: {len(val_dataloader)}")
 
     # Model
@@ -110,15 +109,15 @@ def train(local_rank=0, world_size=1, args=None):
         start_epoch = 0
 
     for epoch_idx in range(start_epoch, args.epochs):
-        train_one_epoch(network,
-                        optimizer,
-                        train_dataloader,
-                        criterion,
-                        epoch_idx,
-                        global_iter,
-                        scheduler=scheduler,
-                        val_loader=val_dataloader,
-                        writer=writer)
+        # train_one_epoch(network,
+        #                 optimizer,
+        #                 train_dataloader,
+        #                 criterion,
+        #                 epoch_idx,
+        #                 global_iter,
+        #                 scheduler=scheduler,
+        #                 val_loader=val_dataloader,
+        #                 writer=writer)
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
             validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)

@@ -54,3 +54,4 @@ def parse_transform(transforms: list):
 
 from . import geometry
 from . import feature
+from . import multiview_transform

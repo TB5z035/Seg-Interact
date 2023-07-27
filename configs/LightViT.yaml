@@ -1,0 +1,229 @@
+pretrained:
+
+seed: 42
+
+world_size: 4
+save_epoch_freq: 10
+val_epoch_freq: 2
+
+model: lightvit_posembed_base
+
+train_dataset: 
+  name: multiview
+  args:
+    root: '/data/discover-07/share/datasets/qianzhi/60types'
+    split: train
+    classes:
+    - '87079'
+    - '54200'
+    - '3700'
+    - '15571'
+    - '98138'
+    - '26047'
+    - '50950'
+    - '2339'
+    - '3626c'
+    - '3659'
+    - 'qm36841-curve'
+    - '3022'
+    - '27263'
+    - '2429'
+    - '59900'
+    - '6541'
+    - '11609'
+    - '15712'
+    - '3710'
+    - '87087'
+    - '15068'
+    - '3665'
+    - '25269'
+    - '24307'
+    - '26604'
+    - '3623'
+    - '37352'
+    - '20482'
+    - '2460'
+    - '32952'
+    - '2445'
+    - '11211'
+    - '24246'
+    - 'qm003'
+    - '24201'
+    - '34103'
+    - '3003'
+    - '3001'
+    - '4032a'
+    - '3024'
+    - '11477'
+    - '26603'
+    - '27507'
+    - '3010'
+    - '3068b'
+    - '3004'
+    - 'qm6134'
+    - '11610'
+    - '22388'
+    - '19119'
+    - '2420'
+    - '2430'
+    - '6091'
+    - '87580'
+    - '3020'
+    - '2431'
+    - '3005'
+    - '3679'
+    - '3070b'
+    - '3660'
+    interpolation: 'nearest'
+    reprob: 0.0
+    remode: 'const'
+    augmentation:
+      SolarizeAdd:
+        prob: 0.4
+        add:
+          val: 0
+          std: 10
+      HSVAugment:
+        prob: 0.6
+        hgain:
+          range: 45
+          val: 45
+        prob: 0.6
+        sgain:
+          range: 45
+          val: 45
+        vgain:
+          range: 45
+          val: 45
+      AutoContrast:
+        prob: 0.5
+      # Blur:
+      #   prob: 1.
+      #   kernel_size: 2
+      Sharpness:
+        prob: 0.3
+        factor: 
+          val: 1.5
+          range: 0.3
+      Contrast:
+        prob: 0.3
+        factor:
+          val: 1
+          range: 0.01
+      Rotate:
+        prob: 0.5
+        degrees: 
+          val: 0
+          range: 15
+      GaussianNoise:
+        prob: 0.3
+        mu: 0
+        sigma:
+          val: 0.01
+          range: 0.002
+    Cutmix:
+      prob: 0.6
+      range: 1
+    UV:
+      concat: False
+    View_shuffle:
+      prob: 0.4
+    View_rotate:
+      prob: 0.3
+    Size_rand:
+      prob: 0.4
+    Random_Drop:
+      prob: 0.6
+    Random_cut:
+      prob: 0.2
+    Random_match_wrong:
+      prob: 0.1
+
+
+val_dataset:
+  name: multiview
+  args: 
+    root: '/data/discover-07/share/datasets/qianzhi/60types'
+    split: test
+    classes:
+    - '87079'
+    - '54200'
+    - '3700'
+    - '15571'
+    - '98138'
+    - '26047'
+    - '50950'
+    - '2339'
+    - '3626c'
+    - '3659'
+    - 'qm36841-curve'
+    - '3022'
+    - '27263'
+    - '2429'
+    - '59900'
+    - '6541'
+    - '11609'
+    - '15712'
+    - '3710'
+    - '87087'
+    - '15068'
+    - '3665'
+    - '25269'
+    - '24307'
+    - '26604'
+    - '3623'
+    - '37352'
+    - '20482'
+    - '2460'
+    - '32952'
+    - '2445'
+    - '11211'
+    - '24246'
+    - 'qm003'
+    - '24201'
+    - '34103'
+    - '3003'
+    - '3001'
+    - '4032a'
+    - '3024'
+    - '11477'
+    - '26603'
+    - '27507'
+    - '3010'
+    - '3068b'
+    - '3004'
+    - 'qm6134'
+    - '11610'
+    - '22388'
+    - '19119'
+    - '2420'
+    - '2430'
+    - '6091'
+    - '87580'
+    - '3020'
+    - '2431'
+    - '3005'
+    - '3679'
+    - '3070b'
+    - '3660'
+    UV:
+      concat: False
+    interpolation: 'nearest'
+optimizer:
+  name: Adam
+  args:
+    lr: 0.001
+    weight_decay: 0.0001
+
+scheduler:
+  name: StepLR
+  args:
+    step_size: 200
+    gamma: 0.5
+
+epochs: 1000
+train_batch_size: 20
+train_num_workers: 4
+val_batch_size: 4
+val_num_workers: 2
+  

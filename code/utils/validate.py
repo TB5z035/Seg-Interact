@@ -1,4 +1,3 @@
-import MinkowskiEngine as ME
 import torch
 from torch.utils.data import DataLoader
 import logging
@@ -23,17 +22,17 @@ def validate(model, val_loader: DataLoader, criterion, metrics=[], writer=None, 
                 ) for metric in metrics
             ]
             loss_sum = 0
-            for idx, (inputs, labels, maps) in enumerate(tqdm(val_loader)):
+            for idx, (inputs, labels, extra) in enumerate(tqdm(val_loader)):
                 output = model(to_device(inputs, device))
                 loss_sum += criterion(output, to_device(labels, device)).item()
 
                 pred = output.argmax(dim=1).cpu()
                 # FIXME handle batch size > 1
                 for metric in metric_objs:
-                    if maps is None:
+                    if extra is None or len(extra) is 0:
                         metric.record(pred, labels)
                     else:
-                        metric.record(pred[maps[1]], labels[maps[1]])
+                        metric.record(pred[extra[1]], labels[extra[1]])
                 # logging.info(f'progress: {idx}/{len(val_loader)}')
 
         metric_results = {metric.NAME: metric.calc() for metric in metric_objs}
