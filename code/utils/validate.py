@@ -34,8 +34,8 @@ def validate(model, val_loader: DataLoader, criterion, metrics=[], writer=None, 
                         metric.record(pred, labels)
                     else:
                         metric.record(pred[extras['maps'][1]], labels[extras['maps'][1]])'''
-                # logging.info(f'progress: {idx}/{len(val_loader)}')
-            
+            # logging.info(f'progress: {idx}/{len(val_loader)}')
+
             for idx, (inputs, labels, extras) in enumerate(tqdm(val_loader)):
                 output = model(to_device(inputs, device))
                 loss_sum += criterion(output, to_device(labels, device)).item()

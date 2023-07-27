@@ -49,8 +49,11 @@ class RandomApply(Transform):
             inputs, labels, extra = self.inner_t(inputs, labels, extra)
         return inputs, labels, extra
 
+
 def parse_transform(transforms: list):
-    return Compose(*[TRANSFORMS[list(t.keys())[0]](**(list(t.values())[0] if list(t.values())[0] else {})) for t in transforms])
+    return Compose(
+        *[TRANSFORMS[list(t.keys())[0]](**(list(t.values())[0] if list(t.values())[0] else {})) for t in transforms])
+
 
 from . import geometry
 from . import feature

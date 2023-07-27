@@ -257,7 +257,7 @@ class ScannetDataset(Dataset):
         for l in self.LABEL_PROTOCOL:
             train_labels[labels == l.id] = l.train_id
         return train_labels
-    
+
     def label_trainid_2_id(self, train_ids=None):
         """
         Convert train ids to ids
@@ -305,7 +305,8 @@ class ScanNetQuantized(ScannetDataset):
         # inputs, labels, maps = list(zip(*batch))
         inputs, labels, extras = list(zip(*batch))
         maps = tuple(extra['maps'] for extra in extras)
-        scene_ids = tuple(extras[extra_idx]['scene_id'] for extra_idx in range(len(extras)) for _ in range(len(labels[extra_idx])))
+        scene_ids = tuple(
+            extras[extra_idx]['scene_id'] for extra_idx in range(len(extras)) for _ in range(len(labels[extra_idx])))
 
         coords, faces, feats = list(zip(*inputs))
         indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
@@ -326,6 +327,7 @@ class ScanNetQuantized(ScannetDataset):
         binv_map = torch.cat(inv_map_list, 0) + inv_map_bias
 
         return (bcoords, bfaces, bfeats), blabels, {'maps': (bmap, binv_map), 'scene_ids': scene_ids}
+
     # (bmap, binv_map)
 
     def __getitem__(self, index) -> dict:
@@ -343,7 +345,7 @@ class ScanNetQuantized(ScannetDataset):
         labels = labels[unique_map]
 
         return (coords, faces, colors), labels, {'maps': (unique_map, inverse_map), 'scene_id': self.scene_ids[index]}
-    
+
 
 @register_dataset('scannet_quantized_limited')
 class ScanNetQuantizedLimited(ScanNetQuantized):
@@ -360,7 +362,8 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         # inputs, labels, maps = list(zip(*batch))
         inputs, labels, extras = list(zip(*batch))
         maps = tuple(extra['maps'] for extra in extras)
-        scene_ids = tuple(extras[extra_idx]['scene_id'] for extra_idx in range(len(extras)) for _ in range(len(labels[extra_idx])))
+        scene_ids = tuple(
+            extras[extra_idx]['scene_id'] for extra_idx in range(len(extras)) for _ in range(len(labels[extra_idx])))
         gt_labels = tuple(extra['gt_labels'] for extra in extras)
 
         coords, faces, feats = list(zip(*inputs))
@@ -382,7 +385,11 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         inv_map_bias = inv_map_cum_length[inv_map_indices.to(int)]
         binv_map = torch.cat(inv_map_list, 0) + inv_map_bias
 
-        return (bcoords, bfaces, bfeats), blabels, {'maps':(bmap, binv_map), 'scene_ids': scene_ids, 'gt_labels': bgt_labels}
+        return (bcoords, bfaces, bfeats), blabels, {
+            'maps': (bmap, binv_map),
+            'scene_ids': scene_ids,
+            'gt_labels': bgt_labels
+        }
 
     def _prepare_item(self, index):
         scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
@@ -395,12 +402,12 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         labels[mask] = 255
         (coords, faces, colors), labels, _ = self.transform((coords, faces, colors[:, :3]), labels, None)
         return (coords, faces, colors), {'labels': labels, 'gt_labels': gt_labels}, None
-    
+
     def __getitem__(self, index) -> dict:
         (coords, faces, colors), labels_dict, _ = self._prepare_item(index)
         labels = labels_dict['labels']
         gt_labels = labels_dict['gt_labels']
-        
+
         coords = torch.from_numpy(coords)
         colors = torch.from_numpy(colors)
         faces = torch.from_numpy(faces)
@@ -414,10 +421,15 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         labels = labels[unique_map]
         gt_labels = gt_labels[unique_map]
 
-        return (coords, faces, colors), labels, {'maps': (unique_map, inverse_map), 'scene_id': self.scene_ids[index], 'gt_labels': gt_labels}
+        return (coords, faces, colors), labels, {
+            'maps': (unique_map, inverse_map),
+            'scene_id': self.scene_ids[index],
+            'gt_labels': gt_labels
+        }
 
 
 class FastLoad(ScannetDataset):
+
     def _load_ply(self, scene_path):
         fast_scene_files = [i for i in os.listdir(scene_path) if i.endswith('_scene.npy')]
         fast_label_files = [i for i in os.listdir(scene_path) if i.endswith('_labels.npy')]
@@ -439,9 +451,11 @@ class FastLoad(ScannetDataset):
             labels = None
         return coords, colors, faces, self._convert_labels(labels)
 
+
 @register_dataset('scannet_quantized_fast')
 class ScanNetQuantizedFast(ScanNetQuantized, FastLoad):
     pass
+
 
 @register_dataset('scannet_quantized_limited_fast')
 class ScanNetQuantizedLimitedFast(ScanNetQuantizedLimited, FastLoad):

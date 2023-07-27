@@ -88,7 +88,7 @@ def train(local_rank=0, world_size=1, args=None):
         logger.info(f"Load pretrained model from {args.pretrained}")
         if args.pretrained_ckpt is not None:
             ckpt = torch.load(args.pretrained_ckpt, map_location=device)
-        else: 
+        else:
             ckpt = torch.load(args.resume, map_location=device)
         network.load_state_dict(ckpt['network'])
         pass
@@ -120,11 +120,7 @@ def train(local_rank=0, world_size=1, args=None):
     # Pseudo Label Update
     inference_iter = 0
     if args.labeling_inference:
-        label_update(args,
-                     network,
-                     train_dataloader,
-                     point_criterion,
-                     inference_iter)
+        label_update(args, network, train_dataloader, point_criterion, inference_iter)
         # inference_iter += 1
         return
 
