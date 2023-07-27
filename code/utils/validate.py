@@ -23,11 +23,26 @@ def validate(model, val_loader: DataLoader, criterion, metrics=[], writer=None, 
             ]
             loss_sum = 0
             for idx, (inputs, labels, extra) in enumerate(tqdm(val_loader)):
+                '''for idx, (inputs, labels, extras) in enumerate(tqdm(val_loader)):
                 output = model(to_device(inputs, device))
                 loss_sum += criterion(output, to_device(labels, device)).item()
 
                 pred = output.argmax(dim=1).cpu()
                 # FIXME handle batch size > 1
+                for metric in metric_objs:
+                    if extras is None:
+                        metric.record(pred, labels)
+                    else:
+                        metric.record(pred[extras['maps'][1]], labels[extras['maps'][1]])'''
+            # logging.info(f'progress: {idx}/{len(val_loader)}')
+
+            for idx, (inputs, labels, extras) in enumerate(tqdm(val_loader)):
+                output = model(to_device(inputs, device))
+                loss_sum += criterion(output, to_device(labels, device)).item()
+
+                pred = output.argmax(dim=1).cpu()
+                # FIXME handle batch size > 1
+                maps = extras['maps']
                 for metric in metric_objs:
                     if extra is None or len(extra) is 0:
                         metric.record(pred, labels)

@@ -41,7 +41,6 @@ def rotation_mat(x, y, z) -> np.ndarray:
     return along_z @ along_y @ along_x
 
 
-
 @register_transform('point_to_center')
 class PointToCenter(Transform):
 
@@ -156,6 +155,7 @@ class PointCloudSizeLimit(Transform):
         inds = np.random.choice(N, self.max_num, replace=False)
         return (coords[inds], faces, feats[inds]), labels[inds], extra
 
+
 @register_transform('elastic_distortion')
 class ElasticDistortion(Transform):
 
@@ -185,7 +185,10 @@ class ElasticDistortion(Transform):
             noise = scipy.ndimage.filters.convolve(noise, blurz, mode='constant', cval=0)
 
         # Trilinear interpolate noise filters for each spatial dimensions.
-        ax = [np.linspace(d_min, d_max, d) for d_min, d_max, d in zip(coords_min - granularity, coords_min + granularity * (noise_dim - 2), noise_dim)]
+        ax = [
+            np.linspace(d_min, d_max, d)
+            for d_min, d_max, d in zip(coords_min - granularity, coords_min + granularity * (noise_dim - 2), noise_dim)
+        ]
         interp = scipy.interpolate.RegularGridInterpolator(ax, noise, bounds_error=0, fill_value=0)
         coords += interp(coords) * magnitude
         return coords, feats, labels

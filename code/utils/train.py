@@ -8,14 +8,16 @@ from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import tensorboardX
+import numpy as np
 
 from ..dataset import DATASETS
 from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clear_paths
 from .validate import validate
+from .psuedo_update import label_update
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -46,6 +48,7 @@ def train(local_rank=0, world_size=1, args=None):
 
     # Dataset
     train_dataset = DATASETS[args.train_dataset['name']](**args.train_dataset['args'])
+
     val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
@@ -58,6 +61,7 @@ def train(local_rank=0, world_size=1, args=None):
                                                                         shuffle=True)
     else:
         train_sampler = None
+
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.train_batch_size,
                                   shuffle=(train_sampler is None),
@@ -81,7 +85,10 @@ def train(local_rank=0, world_size=1, args=None):
         network.load_state_dict(ckpt['network'])
     elif args.pretrained:
         logger.info(f"Load pretrained model from {args.pretrained}")
-        ckpt = torch.load(args.resume, map_location=device)
+        if args.pretrained_ckpt is not None:
+            ckpt = torch.load(args.pretrained_ckpt, map_location=device)
+        else:
+            ckpt = torch.load(args.resume, map_location=device)
         network.load_state_dict(ckpt['network'])
         pass
     network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
@@ -95,6 +102,7 @@ def train(local_rank=0, world_size=1, args=None):
     # Criterion
     # TODO: init from args
     criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
+    point_criterion = torch.nn.CrossEntropyLoss(ignore_index=255, reduction='none')
 
     # Scheduler
     scheduler = SCHEDULERS[args.scheduler['name']](optimizer, **args.scheduler['args'])
@@ -108,7 +116,15 @@ def train(local_rank=0, world_size=1, args=None):
         global_iter = [0]
         start_epoch = 0
 
+    # Pseudo Label Update
+    inference_iter = 0
+    if args.labeling_inference:
+        label_update(args, network, train_dataloader, point_criterion, inference_iter)
+        # inference_iter += 1
+        return
+
     for epoch_idx in range(start_epoch, args.epochs):
+        # Train
         # train_one_epoch(network,
         #                 optimizer,
         #                 train_dataloader,
@@ -123,7 +139,6 @@ def train(local_rank=0, world_size=1, args=None):
             validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
         if epoch_idx % args.save_epoch_freq == 0:
             save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
-
     save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
 
@@ -138,7 +153,8 @@ def train_one_epoch(model,
                     val_loader=None,
                     writer=None):
     model.train()
-    for i, (inputs, labels, _) in enumerate(train_loader):
+
+    for i, (inputs, labels, extras) in enumerate(train_loader):
         optimizer.zero_grad()
         output = model(to_device(inputs, device))
         loss = criterion(output, to_device(labels, device))
