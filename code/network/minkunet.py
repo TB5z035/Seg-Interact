@@ -117,7 +117,7 @@ class MinkUNetBase(ResNetBase):
                                              dimension=D)
         self.relu = ME.MinkowskiReLU(inplace=True)
 
-    def forward(self, inputs):
+    def repr(self, inputs):
         coords, _, feats = inputs
         x = ME.SparseTensor(feats, coordinates=coords, device=get_device())
         out = self.conv0p1s1(x)
@@ -177,6 +177,10 @@ class MinkUNetBase(ResNetBase):
         out = ME.cat(out, out_p1)
         out = self.block8(out)
 
+        return out
+
+    def forward(self, inputs):
+        out = self.repr(inputs)
         return self.final(out).F
 
 
@@ -243,4 +247,26 @@ class MinkUNet34B(MinkUNet34):
 
 @register_network('MinkUNet34C')
 class MinkUNet34C(MinkUNet34):
+    PLANES = (32, 64, 128, 256, 256, 128, 96, 96)
+
+
+class MinkUNetUNCBase(MinkUNetBase):
+
+    def __init__(self, in_channels, out_channels, D=3):
+        super().__init__(in_channels, out_channels, D)
+        self.dropout = ME.MinkowskiDropout(p=0.5)
+
+    def forward(self, inputs):
+        out = self.repr(inputs)
+        out = self.dropout(out)
+        return self.final(out).F
+
+
+class MinkUNet34UNC(MinkUNetUNCBase):
+    BLOCK = BasicBlock
+    LAYERS = (2, 3, 4, 6, 2, 2, 2, 2)
+
+
+@register_network('MinkUNet34CUNC')
+class MinkUNet34CUNC(MinkUNet34UNC):
     PLANES = (32, 64, 128, 256, 256, 128, 96, 96)
