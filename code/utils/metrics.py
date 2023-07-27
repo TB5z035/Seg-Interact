@@ -47,13 +47,14 @@ class IoU(SegmentMetric):
             if writer is not None:
                 writer.add_scalar(f'{name_prefix}{self.NAME}/{self.class_names[idx]}', iou, global_iter)
 
+
 class mIoU(IoU):
     NAME = 'mIoU'
 
     def calc(self):
         ious = super().calc()
         return np.nanmean(ious)
-    
+
     def log(self, logger, writer=None, global_iter=None, name_prefix=''):
         iou = self.calc()
         logger.info(f'{self.NAME}: {iou:.4f}')
