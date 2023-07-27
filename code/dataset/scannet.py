@@ -257,6 +257,23 @@ class ScannetDataset(Dataset):
         for l in self.LABEL_PROTOCOL:
             train_labels[labels == l.id] = l.train_id
         return train_labels
+    
+    def label_trainid_2_id(self, train_ids=None):
+        """
+        Convert train ids to ids
+
+        labels: numpy.ndarray (N,) uint16 or None
+
+        Returns:
+            labels: (N,) uint16
+        """
+        if train_ids is None:
+            return None
+        train_labels = np.zeros_like(train_ids)
+        for l in self.LABEL_PROTOCOL:
+            if l.train_id is not 255:
+                train_labels[train_ids == l.train_id] = l.id
+        return train_labels
 
     def _prepare_item(self, index):
         """
@@ -285,7 +302,11 @@ class ScanNetQuantized(ScannetDataset):
     VOXEL_SIZE = 0.02
 
     def _collate_fn(self, batch):
-        inputs, labels, maps = list(zip(*batch))
+        # inputs, labels, maps = list(zip(*batch))
+        inputs, labels, extras = list(zip(*batch))
+        maps = tuple(extra['maps'] for extra in extras)
+        scene_ids = tuple(extras[extra_idx]['scene_id'] for extra_idx in range(len(extras)) for _ in range(len(labels[extra_idx])))
+
         coords, faces, feats = list(zip(*inputs))
         indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
         bcoords = torch.cat((indices, torch.cat(coords, 0)), -1)
@@ -304,11 +325,12 @@ class ScanNetQuantized(ScannetDataset):
         inv_map_bias = inv_map_cum_length[inv_map_indices.to(int)]
         binv_map = torch.cat(inv_map_list, 0) + inv_map_bias
 
-        return (bcoords, bfaces, bfeats), blabels, None
+        return (bcoords, bfaces, bfeats), blabels, {'maps': (bmap, binv_map), 'scene_ids': scene_ids}
     # (bmap, binv_map)
 
     def __getitem__(self, index) -> dict:
         (coords, faces, colors), labels, _ = self._prepare_item(index)
+
         coords = torch.from_numpy(coords)
         colors = torch.from_numpy(colors)
         faces = torch.from_numpy(faces)
@@ -319,7 +341,9 @@ class ScanNetQuantized(ScannetDataset):
         coords = coords[unique_map].to(torch.float64)
         colors = colors[unique_map]
         labels = labels[unique_map]
-        return (coords, faces, colors), labels, (unique_map, inverse_map)
+
+        return (coords, faces, colors), labels, {'maps': (unique_map, inverse_map), 'scene_id': self.scene_ids[index]}
+    
 
 @register_dataset('scannet_quantized_limited')
 class ScanNetQuantizedLimited(ScanNetQuantized):
@@ -332,18 +356,66 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         self.limit = limit
         self.limit_dict = torch.load(osp.join(root, 'data_efficient', 'points', f'points{limit}'))
 
+    def _collate_fn(self, batch):
+        # inputs, labels, maps = list(zip(*batch))
+        inputs, labels, extras = list(zip(*batch))
+        maps = tuple(extra['maps'] for extra in extras)
+        scene_ids = tuple(extras[extra_idx]['scene_id'] for extra_idx in range(len(extras)) for _ in range(len(labels[extra_idx])))
+        gt_labels = tuple(extra['gt_labels'] for extra in extras)
+
+        coords, faces, feats = list(zip(*inputs))
+        indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
+        bcoords = torch.cat((indices, torch.cat(coords, 0)), -1)
+        bfeats = torch.cat(feats, 0)
+        bfaces = torch.cat(faces, 0)
+        blabels = torch.cat(labels, 0)
+        bgt_labels = torch.cat(gt_labels, 0)
+
+        map_list, inv_map_list = list(zip(*maps))
+        map_cum_length = torch.cumsum(torch.tensor([0] + [len(m) for m in inv_map_list]), 0)
+        map_indices = torch.cat([torch.ones_like(c) * i for i, c in enumerate(map_list)], 0)
+        map_bias = map_cum_length[map_indices.to(int)]
+        bmap = torch.cat(map_list, 0) + map_bias
+
+        inv_map_cum_length = torch.cumsum(torch.tensor([0] + [len(m) for m in map_list]), 0)
+        inv_map_indices = torch.cat([torch.ones_like(c) * i for i, c in enumerate(inv_map_list)], 0)
+        inv_map_bias = inv_map_cum_length[inv_map_indices.to(int)]
+        binv_map = torch.cat(inv_map_list, 0) + inv_map_bias
+
+        return (bcoords, bfaces, bfeats), blabels, {'maps':(bmap, binv_map), 'scene_ids': scene_ids, 'gt_labels': bgt_labels}
+
     def _prepare_item(self, index):
         scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
         coords, colors, faces, labels = self._load_ply(scene_path)
-
+        gt_labels = labels
         scene_id = self.scene_ids[index]
         limit = self.limit_dict[scene_id]
         mask = np.ones_like(labels, dtype=bool)
         mask[limit] = False
         labels[mask] = 255
-
         (coords, faces, colors), labels, _ = self.transform((coords, faces, colors[:, :3]), labels, None)
-        return (coords, faces, colors), labels, None
+        return (coords, faces, colors), {'labels': labels, 'gt_labels': gt_labels}, None
+    
+    def __getitem__(self, index) -> dict:
+        (coords, faces, colors), labels_dict, _ = self._prepare_item(index)
+        labels = labels_dict['labels']
+        gt_labels = labels_dict['gt_labels']
+        
+        coords = torch.from_numpy(coords)
+        colors = torch.from_numpy(colors)
+        faces = torch.from_numpy(faces)
+        labels = torch.from_numpy(labels.astype(np.int64))
+        gt_labels = torch.from_numpy(gt_labels.astype(np.int64))
+
+        coords = (coords / self.VOXEL_SIZE).to(torch.int32)
+        unique_map, inverse_map = ME.utils.quantization.unique_coordinate_map(coords)
+        coords = coords[unique_map].to(torch.float64)
+        colors = colors[unique_map]
+        labels = labels[unique_map]
+        gt_labels = gt_labels[unique_map]
+
+        return (coords, faces, colors), labels, {'maps': (unique_map, inverse_map), 'scene_id': self.scene_ids[index], 'gt_labels': gt_labels}
+
 
 class FastLoad(ScannetDataset):
     def _load_ply(self, scene_path):

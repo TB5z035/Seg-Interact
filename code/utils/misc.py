@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import time
 
+import numpy as np
 import torch
 import torch.distributed as dist
 import tensorboardX
@@ -80,3 +81,42 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
             'scheduler': scheduler.state_dict() if scheduler is not None else None,
             'args': yaml.safe_dump(args.__dict__, default_flow_style=False) if args is not None else None,
         }, f'{args.exp_dir}/checkpoints/{args.start_time}/{name}.pth')
+
+
+'''Functionalities for Saving Pseudo Label Data'''
+def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
+    assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
+    scene_path = osp.join(dataset_path, 'scans', scene_id)
+    # os.makedirs(scene_path, exist_ok=True)
+    # print(labels)
+    # print(osp.join(scene_path, f'{scene_id}_labels_iter_{str(epoch)}.npy'))
+    np.save(
+        osp.join(scene_path, f'{scene_id}_labels_iter_{str(epoch)}.npy'),
+        labels
+    )
+
+def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
+    assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
+    scene_path = osp.join(dataset_path, 'scans', scene_id)
+    # os.makedirs(scene_path, exist_ok=True)
+    # print(loss)
+    # print(osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'))
+    np.save(
+        osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'),
+        loss
+    )
+
+def clear_paths(dataset_path: str) -> None:
+    '''
+    Used to clear pseudo labeling paths (_labels and _loss)
+    '''
+    scenes = os.listdir(osp.join(dataset_path, 'scans'))
+    for scene in scenes:
+        path_loss = osp.join(dataset_path, 'scans', scene, f'{scene}_loss_epoch_0.npy')
+        path_predictions = osp.join(dataset_path, 'scans', scene, f'{scene}_labels_epoch_0.npy')
+        if osp.exists(path_loss):
+            # print(path_loss)
+            os.remove(path_loss)
+        if osp.exists(path_predictions):
+            # print(path_predictions)
+            os.remove(path_predictions)
