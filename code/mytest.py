@@ -9,6 +9,7 @@ np.save('/home/Guest/caiz/Seg-Interact/configs/testing/my.npy', a)
 a = np.load('/home/Guest/caiz/Seg-Interact/configs/testing/my.npy')
 print(a)'''
 
-a = None
-if not a:
-    print(a)
+a = [(1,1,1),(2,2,2),(3,3,3)]
+print(*a)
+x, y, z = list(zip(*a))
+print(x)
