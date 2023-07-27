@@ -94,7 +94,7 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
 
 
 def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
-    assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
+    assert osp.exists(dataset_path), f'dataset path {dataset_path} does not exist'
     scene_path = osp.join(dataset_path, 'scans', scene_id)
     # os.makedirs(scene_path, exist_ok=True)
     # print(labels)
@@ -103,7 +103,7 @@ def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epo
 
 
 def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
-    assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
+    assert osp.exists(dataset_path), f'dataset path {dataset_path} does not exist'
     scene_path = osp.join(dataset_path, 'scans', scene_id)
     # os.makedirs(scene_path, exist_ok=True)
     # print(loss)
