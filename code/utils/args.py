@@ -10,30 +10,41 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     # Network
-    parser.add_argument("--model", type=str, default="MinkUNet34C")
+    parser.add_argument("--model", type=str, default="MinkUNet34C", help="Model name [default: MinkUNet34C]")
+    parser.add_argument("--resume",
+                        type=str,
+                        default=None,
+                        help="Resume training from checkpoint. This is prior to args.pretrained [default: None]")
+    parser.add_argument("--pretrained",
+                        type=str,
+                        default=None,
+                        help="Load pretrained model from checkpoint [default: None]")
 
     # Dataset
-    parser.add_argument("--train_dataset", type=str, default="scannet")
-    parser.add_argument("--train_dataset_root", type=str, default="data")
-    parser.add_argument("--val_dataset", type=str, default="scannet")
-    parser.add_argument("--val_dataset_root", type=str, default="data")
-    parser.add_argument("--train_transform", type=object, default=None)
+    parser.add_argument("--train_dataset",
+                        type=dict,
+                        help="Dataset config as dictionary for training. See configs/base.yaml")
+    parser.add_argument("--val_dataset",
+                        type=dict,
+                        help="Dataset config as dictionary for validation. See configs/base.yaml")
 
     # Training
-    parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--train_batch_size", type=int, default=1)
-    parser.add_argument("--train_num_workers", type=int, default=4)
-    parser.add_argument("--val_batch_size", type=int, default=1)
-    parser.add_argument("--val_num_workers", type=int, default=4)
+    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs [default: 100]")
+    parser.add_argument("--train_batch_size", type=int, default=4, help="Batch size during training [default: 1]")
+    parser.add_argument("--train_num_workers",
+                        type=int,
+                        default=4,
+                        help="Number of workers for the train loader [default: 4]")
+    parser.add_argument("--val_batch_size", type=int, default=4, help="Batch size during validation [default: 1]")
+    parser.add_argument("--val_num_workers",
+                        type=int,
+                        default=4,
+                        help="Number of workers for the validation loader [default: 4]")
 
-    parser.add_argument("--resume", type=str, default=None)
-    parser.add_argument("--pretrained", type=str, default=None)
-    parser.add_argument("--pretrained_ckpt", type=str, default=None, help='path for pretrained checkpoints')
     parser.add_argument("--labeling_inference",
                         type=bool,
                         default=False,
                         help='whether to update/generate and save pseudo labels')
-    # parser.add_argument("--label_update_epoch", type=int, default=2)
 
     # Do we have a config file to parse?
     config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)
