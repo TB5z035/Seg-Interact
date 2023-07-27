@@ -14,8 +14,9 @@ from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, save_pseudo_labels
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clear_paths
 from .validate import validate
+from .psuedo_update import label_update
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -78,7 +79,10 @@ def train(local_rank=0, world_size=1, args=None):
         network.load_state_dict(ckpt['network'])
     elif args.pretrained:
         logger.info(f"Load pretrained model from {args.pretrained}")
-        ckpt = torch.load(args.resume, map_location=device)
+        if args.pretrained_ckpt is not None:
+            ckpt = torch.load(args.pretrained_ckpt, map_location=device)
+        else: 
+            ckpt = torch.load(args.resume, map_location=device)
         network.load_state_dict(ckpt['network'])
         pass
     network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
@@ -92,6 +96,7 @@ def train(local_rank=0, world_size=1, args=None):
     # Criterion
     # TODO: init from args
     criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
+    point_criterion = torch.nn.CrossEntropyLoss(ignore_index=255, reduction='none')
 
     # Scheduler
     scheduler = SCHEDULERS[args.scheduler['name']](optimizer, **args.scheduler['args'])
@@ -103,7 +108,19 @@ def train(local_rank=0, world_size=1, args=None):
         global_iter = [0]
         start_epoch = 0
 
+    # Pseudo Label Update
+    inference_iter = 0
+    if args.labeling_inference:
+        label_update(args,
+                     network,
+                     train_dataloader,
+                     point_criterion,
+                     inference_iter)
+        inference_iter += 1
+        return
+
     for epoch_idx in range(start_epoch, args.epochs):
+        # Train
         train_one_epoch(network,
                         optimizer,
                         train_dataloader,
@@ -118,7 +135,6 @@ def train(local_rank=0, world_size=1, args=None):
             validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
         if epoch_idx % args.save_epoch_freq == 0:
             save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
-
     save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
 
@@ -137,23 +153,6 @@ def train_one_epoch(model,
     for i, (inputs, labels, extras) in enumerate(train_loader):
         optimizer.zero_grad()
         output = model(to_device(inputs, device))
-
-        _, preds = torch.topk(output, 1)
-        preds = torch.squeeze(preds.t()).cpu()
-        preds = preds.numpy()
-        for pred in preds:
-            if pred is 20:
-                pred = 255
-
-        scenes = set(extras)
-        prev_scene_count = 0
-        for scene in scenes:
-            this_scene_count = extras.count(scene)
-            scene_preds = preds[prev_scene_count:prev_scene_count+this_scene_count]
-            label_ids = train_loader.dataset.label_trainid_2_id(scene_preds)
-            save_pseudo_labels(label_ids, args.train_dataset['args']['root'], scene, epoch_idx)
-            prev_scene_count += this_scene_count
-
         loss = criterion(output, to_device(labels, device))
         loss.backward()
         optimizer.step()

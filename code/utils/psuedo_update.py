@@ -36,3 +36,7 @@ def label_update(args, model, train_loader, criterion, epoch_idx):
                     save_pseudo_labels(label_ids, args.train_dataset['args']['root'], scene, epoch_idx)
                     save_pseudo_loss(scene_loss, args.train_dataset['args']['root'], scene, epoch_idx)
                     prev_scene_count += this_scene_count
+
+
+# if __name__ == "__main__":
+

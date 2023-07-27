@@ -1,8 +1,10 @@
-pretrained:
+pretrained: inference_checkpoints
+pretrained_ckpt: '/hdd1/Guest/tb5zhh/workspace/Seg-Interact/experiments/base/checkpoints/20230723_164149-last.pth'
 
 world_size: 1
 save_epoch_freq: 5
 val_epoch_freq: 5
+# label_update_epoch: 1
 
 model: MinkUNet34C
 

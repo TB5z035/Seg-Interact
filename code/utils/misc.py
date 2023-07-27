@@ -81,6 +81,8 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
             'args': yaml.safe_dump(args.__dict__, default_flow_style=False) if args is not None else None,
         }, f'{args.exp_dir}/checkpoints/{args.start_time}-{name}.pth')
 
+
+'''Functionalities for Saving Pseudo Label Data'''
 def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epoch_idx) -> None:
     assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
     scene_path = osp.join(dataset_path, 'scans', scene_id)
@@ -92,7 +94,6 @@ def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epo
         labels
     )
 
-
 def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch_idx) -> None:
     assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
     scene_path = osp.join(dataset_path, 'scans', scene_id)
@@ -103,7 +104,6 @@ def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch_i
         osp.join(scene_path, f'{scene_id}_loss_epoch_{str(epoch_idx)}.npy'),
         loss
     )
-
 
 def clear_paths(dataset_path: str) -> None:
     '''

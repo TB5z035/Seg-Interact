@@ -27,6 +27,9 @@ def get_args():
 
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--pretrained", type=str, default=None)
+    parser.add_argument("--pretrained_ckpt", type=str, default=None, help='path for pretrained checkpoints')
+    parser.add_argument("--labeling_inference", type=bool, default=False, help='whether to update/generate and save pseudo labels')
+    # parser.add_argument("--label_update_epoch", type=int, default=2)
 
     # Do we have a config file to parse?
     config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)
@@ -35,6 +38,7 @@ def get_args():
                                default=None,
                                type=str,
                                help='YAML config file specifying default arguments')
+    
     args_config, remaining = config_parser.parse_known_args()
     assert args_config.config is not None, 'Config file must be specified'
 

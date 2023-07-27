@@ -42,7 +42,8 @@ def validate(model, val_loader: DataLoader, criterion, metrics=[], writer=None, 
 
                 pred = output.argmax(dim=1).cpu()
                 # FIXME handle batch size > 1
-                metrics.record(pred, labels)
+                for metric in metric_objs:
+                    metric.record(pred, labels)
                 '''for metric in metric_objs:
                     if maps is None:
                         metric.record(pred, labels)
