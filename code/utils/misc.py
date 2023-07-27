@@ -85,9 +85,37 @@ def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epo
     assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
     scene_path = osp.join(dataset_path, 'scans', scene_id)
     # os.makedirs(scene_path, exist_ok=True)
-    print(labels)
-    print(osp.join(scene_path, f'{scene_id}_labels_epoch_{str(epoch_idx)}.npy'))
+    # print(labels)
+    # print(osp.join(scene_path, f'{scene_id}_labels_epoch_{str(epoch_idx)}.npy'))
     np.save(
         osp.join(scene_path, f'{scene_id}_labels_epoch_{str(epoch_idx)}.npy'),
         labels
     )
+
+
+def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch_idx) -> None:
+    assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
+    scene_path = osp.join(dataset_path, 'scans', scene_id)
+    # os.makedirs(scene_path, exist_ok=True)
+    # print(loss)
+    # print(osp.join(scene_path, f'{scene_id}_loss_epoch_{str(epoch_idx)}.npy'))
+    np.save(
+        osp.join(scene_path, f'{scene_id}_loss_epoch_{str(epoch_idx)}.npy'),
+        loss
+    )
+
+
+def clear_paths(dataset_path: str) -> None:
+    '''
+    Used to clear pseudo labeling paths (_labels and _loss)
+    '''
+    scenes = os.listdir(osp.join(dataset_path, 'scans'))
+    for scene in scenes:
+        path_loss = osp.join(dataset_path, 'scans', scene, f'{scene}_loss_epoch_0.npy')
+        path_predictions = osp.join(dataset_path, 'scans', scene, f'{scene}_labels_epoch_0.npy')
+        if osp.exists(path_loss):
+            # print(path_loss)
+            os.remove(path_loss)
+        if osp.exists(path_predictions):
+            # print(path_predictions)
+            os.remove(path_predictions)
