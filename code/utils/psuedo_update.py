@@ -34,8 +34,8 @@ def label_update(args, model, train_loader, criterion, epoch):
                 prev_scene_count = 0
                 for scene in scenes:
                     this_scene_count = extras['scene_ids'].count(scene)
-                    scene_preds = preds[prev_scene_count:prev_scene_count+this_scene_count]
-                    scene_loss = point_loss[prev_scene_count:prev_scene_count+this_scene_count]
+                    scene_preds = preds[prev_scene_count:prev_scene_count + this_scene_count]
+                    scene_loss = point_loss[prev_scene_count:prev_scene_count + this_scene_count]
                     label_ids = train_loader.dataset.label_trainid_2_id(scene_preds)
                     save_pseudo_labels(label_ids, args.train_dataset['args']['root'], scene, epoch)
                     save_pseudo_loss(scene_loss, args.train_dataset['args']['root'], scene, epoch)

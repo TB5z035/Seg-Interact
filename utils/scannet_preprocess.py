@@ -71,7 +71,6 @@ def extract_and_save_scene(scene_path: str, root_path=None, save_root_path=None)
             'faces':
                 np.stack(scene_plydata['face']['vertex_indices'], axis=0)
         })
-    
 
 
 def preprocess_scannet(scannet_path: str, start=0, split=1, save_root=None) -> None:
@@ -91,7 +90,6 @@ def preprocess_scannet(scannet_path: str, start=0, split=1, save_root=None) -> N
         extract_and_save_labels(scene, scannet_path, save_root)
 
 
-
 if __name__ == '__main__':
     import multiprocessing
     import argparse
@@ -101,5 +99,5 @@ if __name__ == '__main__':
     parser.add_argument('--process', '-n', type=int, default=1, help='Number of processes to use')
     args = parser.parse_args()
     pool = multiprocessing.Pool(args.process)
-    pool.starmap(preprocess_scannet, [(args.scannet_path, i, args.process, args.save_root) for i in range(args.process)])
-    
+    pool.starmap(preprocess_scannet,
+                 [(args.scannet_path, i, args.process, args.save_root) for i in range(args.process)])

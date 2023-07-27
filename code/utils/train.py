@@ -117,11 +117,7 @@ def train(local_rank=0, world_size=1, args=None):
     # Pseudo Label Update
     inference_iter = 0
     if args.labeling_inference:
-        label_update(args,
-                     network,
-                     train_dataloader,
-                     point_criterion,
-                     inference_iter)
+        label_update(args, network, train_dataloader, point_criterion, inference_iter)
         # inference_iter += 1
         return
 
