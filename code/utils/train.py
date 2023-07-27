@@ -116,7 +116,7 @@ def train(local_rank=0, world_size=1, args=None):
                      train_dataloader,
                      point_criterion,
                      inference_iter)
-        inference_iter += 1
+        # inference_iter += 1
         return
 
     for epoch_idx in range(start_epoch, args.epochs):

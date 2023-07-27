@@ -83,25 +83,25 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
 
 
 '''Functionalities for Saving Pseudo Label Data'''
-def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epoch_idx) -> None:
+def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
     assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
     scene_path = osp.join(dataset_path, 'scans', scene_id)
     # os.makedirs(scene_path, exist_ok=True)
     # print(labels)
-    # print(osp.join(scene_path, f'{scene_id}_labels_epoch_{str(epoch_idx)}.npy'))
+    # print(osp.join(scene_path, f'{scene_id}_labels_iter_{str(epoch)}.npy'))
     np.save(
-        osp.join(scene_path, f'{scene_id}_labels_epoch_{str(epoch_idx)}.npy'),
+        osp.join(scene_path, f'{scene_id}_labels_iter_{str(epoch)}.npy'),
         labels
     )
 
-def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch_idx) -> None:
+def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
     assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
     scene_path = osp.join(dataset_path, 'scans', scene_id)
     # os.makedirs(scene_path, exist_ok=True)
-    print(loss)
-    print(osp.join(scene_path, f'{scene_id}_loss_epoch_{str(epoch_idx)}.npy'))
+    # print(loss)
+    # print(osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'))
     np.save(
-        osp.join(scene_path, f'{scene_id}_loss_epoch_{str(epoch_idx)}.npy'),
+        osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'),
         loss
     )
 
