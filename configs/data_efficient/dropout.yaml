@@ -6,12 +6,12 @@ world_size: 4
 save_epoch_freq: 5
 val_epoch_freq: 5
 
-model: MinkUNet34C
+model: MinkUNet34CUNC
 
 train_dataset: 
-  name: scannet_quantized_fast
+  name: scannet_quantized_limited_fast
   args:
-    root: /data15/tb5zhh/workspace/2023/ScanNetFast
+    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
     split: train
     transform:
       - elastic_distortion:
@@ -45,11 +45,12 @@ train_dataset:
       - point_to_center:
       - point_cloud_size_limit:
           max_num: 200000
+    limit: 20
 
 val_dataset:
   name: scannet_quantized_fast
   args: 
-    root: /data15/tb5zhh/workspace/2023/ScanNetFast
+    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
     split: val
     transform:
       - point_chromatic_normalize:
