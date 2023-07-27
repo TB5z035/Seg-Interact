@@ -112,8 +112,8 @@ def clear_paths(dataset_path: str) -> None:
     '''
     scenes = os.listdir(osp.join(dataset_path, 'scans'))
     for scene in scenes:
-        path_loss = osp.join(dataset_path, 'scans', scene, f'{scene}_loss_epoch_0.npy')
-        path_predictions = osp.join(dataset_path, 'scans', scene, f'{scene}_labels_epoch_0.npy')
+        path_loss = osp.join(dataset_path, 'scans', scene, f'{scene}_loss_iter_0.npy')
+        path_predictions = osp.join(dataset_path, 'scans', scene, f'{scene}_labels_iter_0.npy')
         if osp.exists(path_loss):
             # print(path_loss)
             os.remove(path_loss)
