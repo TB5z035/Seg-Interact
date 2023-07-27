@@ -44,17 +44,17 @@ def rotation_mat(x, y, z) -> np.ndarray:
 @register_transform('point_to_center')
 class PointToCenter(Transform):
 
-    def __call__(self, inputs, labels, maps):
+    def __call__(self, inputs, labels, extra: dict):
         coords, faces, feats = inputs
-        return (coords - coords.mean(0), faces, feats), labels, maps
+        return (coords - coords.mean(0), faces, feats), labels, extra
 
 
 @register_transform('point_to_positive')
 class PointToPositive(Transform):
 
-    def __call__(self, inputs, labels, maps):
+    def __call__(self, inputs, labels, extra: dict):
         coords, faces, feats = inputs
-        return (coords - coords.min(0), faces, feats), labels, maps
+        return (coords - coords.min(0), faces, feats), labels, extra
 
 
 @register_transform('random_rotation')
@@ -67,7 +67,7 @@ class RandomRotation(Transform):
         self.angle_v = angle_v
         self.upright_axis = {'x': 0, 'y': 1, 'z': 2}[upright_axis.lower()]
 
-    def __call__(self, inputs, labels, maps):
+    def __call__(self, inputs, labels, extra: dict):
         coords, faces, feats = inputs
         center = coords - coords.mean(0)
         angle = [np.random.uniform(-self.angle_v, self.angle_v) for _ in range(3)]
@@ -75,7 +75,7 @@ class RandomRotation(Transform):
         rot_mat = rotation_mat(*angle)[:3, :3]
         coords = (coords - center) @ rot_mat + center
 
-        return (coords, faces, feats), labels, maps
+        return (coords, faces, feats), labels, extra
 
 
 @register_transform('random_scale')
@@ -84,11 +84,11 @@ class RandomScale(Transform):
     def __init__(self, scale_rng=(0.9, 1.1)) -> None:
         self.scale_rng = scale_rng
 
-    def __call__(self, inputs, labels, maps):
+    def __call__(self, inputs, labels, extra: dict):
         coords, faces, feats = inputs
         scale = np.random.uniform(*self.scale_rng)
         scale = coords * scale
-        return (coords, faces, feats), labels, maps
+        return (coords, faces, feats), labels, extra
 
 
 @register_transform('random_dropout')
@@ -100,11 +100,11 @@ class RandomDropout(Transform):
     def __init__(self, dropout_ratio=0.2):
         self.dropout_ratio = dropout_ratio
 
-    def __call__(self, inputs, labels, maps):
+    def __call__(self, inputs, labels, extra: dict):
         coords, faces, feats = inputs
         N = coords.shape[0]
         inds = np.random.choice(N, int(N * (1 - self.dropout_ratio)), replace=False)
-        return (coords[inds], faces, feats[inds]), labels[inds], maps
+        return (coords[inds], faces, feats[inds]), labels[inds], extra
 
 
 @register_transform('random_horizontal_flip')
@@ -114,13 +114,13 @@ class RandomHorizontalFlip(Transform):
         self.upright_axis = {'x': 0, 'y': 1, 'z': 2}[upright_axis.lower()]
         self.horizontal_axes = [i for i in range(3) if i != self.upright_axis]
 
-    def __call__(self, inputs, labels, maps):
+    def __call__(self, inputs, labels, extra: dict):
         coords, faces, feats = inputs
         for curr_ax in self.horizontal_axes:
             if random.random() < 0.5:
                 coord_mean = np.mean(coords[:, curr_ax])
                 coords[:, curr_ax] = 2 * coord_mean - coords[:, curr_ax]
-        return (coords, faces, feats), labels, maps
+        return (coords, faces, feats), labels, extra
 
 
 @register_transform('random_translation')
@@ -129,10 +129,10 @@ class RandomTranslation(Transform):
     def __init__(self, translation_range=0.2):
         self.translation_range = translation_range
 
-    def __call__(self, inputs, labels, maps):
+    def __call__(self, inputs, labels, extra: dict):
         coords, faces, feats = inputs
         translation = np.random.uniform(-self.translation_range, self.translation_range, size=(3,))
-        return (coords + translation, faces, feats), labels, maps
+        return (coords + translation, faces, feats), labels, extra
 
 
 @register_transform('point_cloud_size_limit')
@@ -145,7 +145,7 @@ class PointCloudSizeLimit(Transform):
     def __init__(self, max_num=200000):
         self.max_num = max_num
 
-    def __call__(self, inputs, labels, extra):
+    def __call__(self, inputs, labels, extra: dict):
         coords, faces, feats = inputs
         N = coords.shape[0]
         if self.max_num > N:
@@ -193,7 +193,7 @@ class ElasticDistortion(Transform):
         coords += interp(coords) * magnitude
         return coords, feats, labels
 
-    def __call__(self, inputs, labels, extra):  # 0.95
+    def __call__(self, inputs, labels, extra: dict):  # 0.95
         coords, faces, feats = inputs
         for granularity, magnitude in self.distortion_params:
             coords, feats, labels = self.elastic_distortion(coords, feats, labels, granularity, magnitude)
