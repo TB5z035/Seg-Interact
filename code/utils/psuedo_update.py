@@ -48,10 +48,11 @@ def get_n_update_count(count_file_path: str, reset: bool):
     count_path = osp.join(count_file_path, 'inference_count.npy')
     if osp.exists(count_path) and not reset:
         current_count = np.load(count_path)
-        np.save(count_path, current_count+1)
+        np.save(count_path, current_count + 1)
         return int(current_count)
     else:
         np.save(count_path, np.array(0))
         return 0
+
 
 # if __name__ == "__main__":

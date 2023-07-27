@@ -8,4 +8,3 @@ a = np.array([2,2,3])
 np.save('/home/Guest/caiz/Seg-Interact/configs/testing/my.npy', a)
 a = np.load('/home/Guest/caiz/Seg-Interact/configs/testing/my.npy')
 print(a)'''
-

@@ -50,10 +50,7 @@ def get_args():
                         default=False,
                         action='store_true',
                         help='whether to reset inference count')
-    parser.add_argument("--inference_count_path",
-                        type=str,
-                        default='',
-                        help='path to inference count file')
+    parser.add_argument("--inference_count_path", type=str, default='', help='path to inference count file')
     parser.add_argument("--update_points_num",
                         type=int,
                         default=200,
