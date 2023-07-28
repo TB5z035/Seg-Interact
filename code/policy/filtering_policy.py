@@ -20,12 +20,13 @@ def highest_loss_filtering(args, dataset_path: str, epoch: int):
             if osp.exists(osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{epoch-1}.npy')):
                 prev_updated_labels = np.load(
                     osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{epoch-1}.npy'))
-                existing_labels = np.delete(np.arange(len(prev_updated_labels)), np.where(prev_updated_labels == -1))
-                existing_num = len(existing_labels)
+                existing_label_indices = np.delete(np.arange(len(prev_updated_labels)),
+                                                   np.where(prev_updated_labels == -1))
+                existing_num = len(existing_label_indices)
             else:
                 existing_num = args.train_dataset["args"]["limit"]
-                existing_labels = torch.load(osp.join(dataset_path, 'data_efficient', 'points',
-                                                      f'points{existing_num}'))
+                existing_label_indices = torch.load(
+                    osp.join(dataset_path, 'data_efficient', 'points', f'points{existing_num}'))[scene]
 
             assert len(scene_gt_labels) == len(scene_predictions) == len(
                 scene_losses), f'number of preds, gt_labels, and losses differ in scene {scene}'
@@ -34,16 +35,16 @@ def highest_loss_filtering(args, dataset_path: str, epoch: int):
             ) >= args.update_point_num, f'exceeded max possible number of points to update: {args.update_point_num} > {len(scene_losses)-existing_num}'
 
             # Exclude Labeled points in ScanNetLimited Dataset from Selection
-            limit = existing_labels[scene]
             mask = np.zeros_like(scene_losses, dtype=bool)
-            mask[limit] = True
+            mask[existing_label_indices] = True
             scene_losses[mask] = 0.
+            scene_predictions[mask] = scene_gt_labels[mask]  # Correct Erroneous Preedictions on Existing Labels
 
             # Selection and Update
             filtered_point_indices = np.argpartition(scene_losses, args.update_points_num - 1)[:args.update_point_num]
             excluded_point_indices = np.delete(np.arange(len(scene_losses)), filtered_point_indices)
             scene_predictions[filtered_point_indices] = scene_gt_labels[filtered_point_indices]
-            scene_predictions[excluded_point_indices] = -1
+            scene_predictions[excluded_point_indices] = -1  # Used to Discern Points that are Without gt_labels
             scene_updated_labels = scene_predictions
 
             np.save(osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{str(epoch)}.npy'),
@@ -66,12 +67,13 @@ def random_filtering(args, dataset_path: str, epoch: int):
             if osp.exists(osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{epoch-1}.npy')):
                 prev_updated_labels = np.load(
                     osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{epoch-1}.npy'))
-                existing_labels = np.delete(np.arange(len(prev_updated_labels)), np.where(prev_updated_labels == -1))
-                existing_num = len(existing_labels)
+                existing_label_indices = np.delete(np.arange(len(prev_updated_labels)),
+                                                   np.where(prev_updated_labels == -1))
+                existing_num = len(existing_label_indices)
             else:
                 existing_num = args.train_dataset["args"]["limit"]
-                existing_labels = torch.load(osp.join(dataset_path, 'data_efficient', 'points',
-                                                      f'points{existing_num}'))
+                existing_label_indices = torch.load(
+                    osp.join(dataset_path, 'data_efficient', 'points', f'points{existing_num}'))[scene]
 
             assert len(scene_gt_labels) == len(
                 scene_predictions), f'number of preds and gt_labels differ in scene {scene}'
@@ -80,16 +82,18 @@ def random_filtering(args, dataset_path: str, epoch: int):
             ) >= args.update_point_num, f'exceeded max possible number of points to update: {args.update_point_num} > {len(scene_predictions)-existing_num}'
 
             # Exclude Labeled points in ScanNetLimited Dataset from Selection
-            limit = existing_labels[scene]
             mask = np.zeros_like(scene_predictions, dtype=bool)
-            mask[limit] = True
+            mask[existing_label_indices] = True
             indices = np.arange(len(scene_predictions))
             indices = np.delete(indices, mask)
+            scene_predictions[mask] = scene_gt_labels[mask]  # Correct Erroneous Preedictions on Existing Labels
 
             # Selection and Update
             np.random.seed(np.random.randint(0, 50))
             filtered_point_indices = np.random.choice(indices, args.update_point_num, replace=False)
+            excluded_point_indices = np.delete(np.arange(len(scene_predictions)), filtered_point_indices)
             scene_predictions[filtered_point_indices] = scene_gt_labels[filtered_point_indices]
+            scene_predictions[excluded_point_indices] = -1  # Used to Discern Points that are Without gt_labels
             scene_updated_labels = scene_predictions
             np.random.seed(args.seed)
 
