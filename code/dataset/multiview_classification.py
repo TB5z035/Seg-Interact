@@ -52,8 +52,9 @@ class MultiviewDataset(Dataset):
     def train_class_names(self):
         return self.classes
 
+    @property
     def ignore_class(self):
-        return None
+        return -1
 
     def find_classes(self, classes):
         class_to_idx = {classes[i]: i for i in range(len(classes))}

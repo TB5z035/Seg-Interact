@@ -128,15 +128,15 @@ def train(local_rank=0, world_size=1, args=None):
 
     for epoch_idx in range(start_epoch, args.epochs):
         # Train
-        # train_one_epoch(network,
-        #                 optimizer,
-        #                 train_dataloader,
-        #                 criterion,
-        #                 epoch_idx,
-        #                 global_iter,
-        #                 scheduler=scheduler,
-        #                 val_loader=val_dataloader,
-        #                 writer=writer)
+        train_one_epoch(network,
+                        optimizer,
+                        train_dataloader,
+                        criterion,
+                        epoch_idx,
+                        global_iter,
+                        scheduler=scheduler,
+                        val_loader=val_dataloader,
+                        writer=writer)
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
             validate(network,
