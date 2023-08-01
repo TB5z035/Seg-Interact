@@ -55,7 +55,7 @@ def get_args():
                         type=int,
                         default=200,
                         help='number of points to update after each inference')
-    # parser.add_argument("--label_update_epoch", type=int, default=2)
+    parser.add_argument("--labeling_inference_epoch", type=int, default=5)
 
     # Do we have a config file to parse?
     config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)
@@ -74,6 +74,8 @@ def get_args():
     args = parser.parse_args(remaining)
     args.exp_dir = osp.join('experiments', osp.relpath(args_config.config, 'configs')[:-5])
     args.start_time = get_time_str()
+    if args.labeling_inference:
+        assert args.inference_count_path is not None, 'inference count path not specified'
     if args.resume:
         resume_path = args.resume
         import torch

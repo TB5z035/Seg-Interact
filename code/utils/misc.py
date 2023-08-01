@@ -123,3 +123,9 @@ def clear_paths(dataset_path: str) -> None:
         ]
         for file in scene_del_files:
             os.remove(osp.join(dataset_path, 'scans', scene, file))
+
+
+def seq_2_ordered_set(seq):
+    seen = set()
+    seen_add = seen.add
+    return [x for x in seq if not (x in seen or seen_add(x))]

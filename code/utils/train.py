@@ -1,5 +1,6 @@
 import random
 import logging
+import os.path as osp
 
 import MinkowskiEngine as ME
 import numpy as np
@@ -8,16 +9,16 @@ from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import tensorboardX
-import numpy as np
 
 from ..dataset import DATASETS
 from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clear_paths
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clear_paths, seq_2_ordered_set
 from .validate import validate
-from .psuedo_update import label_update, get_n_update_count
+from .pseudo_update import label_update, get_n_update_count
+from ..policy.filtering_policy import highest_loss_filtering
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -114,14 +115,20 @@ def train(local_rank=0, world_size=1, args=None):
         global_iter = [0]
         start_epoch = 0
 
-    # Pseudo Label Update
+    # Labeling Inference Init
     if args.labeling_inference:
-        assert args.inference_count_path is not None, 'inference count path not specified'
         inference_count = get_n_update_count(args.inference_count_path, reset=args.inference_count_reset)
         label_update(args, network, train_dataloader, point_criterion, inference_count)
-        return
+        highest_loss_filtering(args, args.train_dataset['args']['root'], inference_count)
 
     for epoch_idx in range(start_epoch, args.epochs):
+        if args.labeling_inference:
+            labeling_inference_args = {
+                'dataset_path': args.train_dataset['args']['root'],
+                'labeling_inference_count': inference_count
+            }
+        else:
+            labeling_inference_args = {}
         # Train
         train_one_epoch(network,
                         optimizer,
@@ -131,13 +138,21 @@ def train(local_rank=0, world_size=1, args=None):
                         global_iter,
                         scheduler=scheduler,
                         val_loader=val_dataloader,
-                        writer=writer)
+                        writer=writer,
+                        **labeling_inference_args)
+        
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
             validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
         if epoch_idx % args.save_epoch_freq == 0:
             save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
+        # Labeling Inference
+        if args.labeling_inference and epoch_idx % args.labeling_inference_epoch == 0:
+            inference_count = get_n_update_count(args.inference_count_path, reset=False)
+            label_update(args, network, train_dataloader, point_criterion, inference_count)
+            highest_loss_filtering(args, args.train_dataset['args']['root'], inference_count)
     save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
+    # clear_paths(args.train_dataset['args']['root'])
 
 
 def train_one_epoch(model,
@@ -149,12 +164,27 @@ def train_one_epoch(model,
                     logging_freq=10,
                     scheduler=None,
                     val_loader=None,
-                    writer=None):
+                    writer=None,
+                    **kwargs):
     model.train()
+    # Checking Whether Using Inference Updated Labels
+    dataset_path, inference_count = (kwargs['dataset_path'],
+                                     kwargs['labeling_inference_count']) if len(kwargs) != 0 else (None, None)
 
     for i, (inputs, labels, extras) in enumerate(train_loader):
+        unique_maps, _ = extras['maps']
+        scene_ids = seq_2_ordered_set(extras['scene_ids'])
         optimizer.zero_grad()
         output = model(to_device(inputs, device))
+
+        if (dataset_path and inference_count) is not None:
+            labels = torch.cat([
+                torch.from_numpy(
+                    np.load(osp.join(dataset_path, 'scans', scene,
+                                     f'{scene}_updated_labels_iter_{inference_count}.npy'))) for scene in scene_ids
+            ])
+            labels = labels[unique_maps]
+            labels = torch.from_numpy(train_loader.dataset._convert_labels(labels))
         loss = criterion(output, to_device(labels, device))
         loss.backward()
         optimizer.step()
@@ -177,6 +207,9 @@ if __name__ == '__main__':
     init_directory(args, args_text)
     args.port = random.randint(10000, 20000)
     logger.info(args_text)
+
+    #clear_paths(args.train_dataset['args']['root'])
+    #exit()
 
     if args.world_size == 1:
         train(args=args)

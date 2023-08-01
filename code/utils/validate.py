@@ -28,6 +28,7 @@ def validate(model, val_loader: DataLoader, criterion=None, metrics=[], writer=N
                 output = model(to_device(inputs, device))
                 pred = output.argmax(dim=1).cpu()
                 if 'maps' in extras:
+                    output = output[extras['maps'][1]]
                     pred = pred[extras['maps'][1]]
                     labels = labels[extras['maps'][1]]
 

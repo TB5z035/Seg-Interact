@@ -407,13 +407,13 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         mask = np.ones_like(labels, dtype=bool)
         mask[limit] = False
         labels[mask] = 255
+        _, gt_labels, _ = self.transform((coords, faces, colors[:, :3]), gt_labels, None)
         (coords, faces, colors), labels, _ = self.transform((coords, faces, colors[:, :3]), labels, None)
-        return (coords, faces, colors), {'labels': labels, 'gt_labels': gt_labels}, None
+        return (coords, faces, colors), labels, {'path': scene_path, 'gt_labels': gt_labels}
 
     def __getitem__(self, index) -> dict:
-        (coords, faces, colors), labels_dict, _ = self._prepare_item(index)
-        labels = labels_dict['labels']
-        gt_labels = labels_dict['gt_labels']
+        (coords, faces, colors), labels, extra = self._prepare_item(index)
+        gt_labels = extra['gt_labels']
 
         coords = torch.from_numpy(coords)
         colors = torch.from_numpy(colors)
