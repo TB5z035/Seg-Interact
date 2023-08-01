@@ -79,7 +79,7 @@ def train(local_rank=0, world_size=1, args=None):
     logger.info(f"Train dataloader: {len(train_dataloader)}, Val dataloader: {len(val_dataloader)}")
 
     # Model
-    network = NETWORKS[args.model](train_dataset.num_channel, train_dataset.num_train_classes)
+    network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes, **args.model['args'])
     network = network.to(device)
     # Load pretrained model
     if args.resume:

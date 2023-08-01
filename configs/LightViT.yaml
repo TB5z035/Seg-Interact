@@ -2,11 +2,14 @@ pretrained:
 
 seed: 42
 
-world_size: 1
+world_size: 2
 save_epoch_freq: 10
 val_epoch_freq: 2
 
-model: lightvit_posembed_base
+model: 
+  name: lightvit_posembed_base
+  args:
+    mae_pretrained_ckpt: '/data/discover-07/xuj/workspace/my_mae/furthur_pretrain_log_on_60types/checkpoint-20.pth' 
 metrics: 
     - Acc
 train_dataset: 
@@ -213,8 +216,8 @@ val_dataset:
 optimizer:
   name: Adam
   args:
-    lr: 0.001
-    weight_decay: 0.0001
+    lr: 1.e-4
+    weight_decay: 0.967
 
 scheduler:
   name: StepLR
@@ -222,7 +225,7 @@ scheduler:
     step_size: 200
     gamma: 0.5
 
-epochs: 1000
+epochs: 50
 train_batch_size: 20
 train_num_workers: 4
 val_batch_size: 4
