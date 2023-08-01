@@ -140,7 +140,7 @@ def train(local_rank=0, world_size=1, args=None):
                         val_loader=val_dataloader,
                         writer=writer,
                         **labeling_inference_args)
-        
+
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
             validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)

@@ -61,7 +61,7 @@ def label_update(args, model, train_loader, criterion, epoch):
                                      f'{scene}_updated_labels_iter_{epoch-1}.npy'), prev_label_ids)
                     prev_scene_count += this_scene_count
 
-                    
+
 def get_n_update_count(count_file_path: str, reset: bool):
     assert osp.exists(count_file_path), f'path to save count file {count_file_path} does not exist'
     count_path = osp.join(count_file_path, 'inference_count.npy')
