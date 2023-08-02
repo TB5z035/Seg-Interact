@@ -16,7 +16,8 @@ def label_update(args, model, train_loader, criterion, epoch):
         model.eval()
         with torch.no_grad():
             for _, (inputs, labels, extras) in enumerate(tqdm(train_loader)):
-                _, inv_map = extras['maps']
+                pass
+                '''_, inv_map = extras['maps']
                 gt_labels = extras['gt_labels']
 
                 output = model(to_device(inputs, device))
@@ -59,7 +60,7 @@ def label_update(args, model, train_loader, criterion, epoch):
                         np.save(
                             osp.join(args.train_dataset['args']['root'], 'scans', scene,
                                      f'{scene}_updated_labels_iter_{epoch-1}.npy'), prev_label_ids)
-                    prev_scene_count += this_scene_count
+                    prev_scene_count += this_scene_count'''
 
 
 def get_n_update_count(count_file_path: str, reset: bool):
