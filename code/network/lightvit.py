@@ -679,8 +679,7 @@ class LightViT_multiview(nn.Module):
         self.num_views = num_views
         print(mae_pretrained_ckpt)
         self.load_mae_pretrain(mae_pretrained_ckpt)
-        
-        
+
     def load_mae_pretrain(self, pretrained_ckpt):
         if pretrained_ckpt != '':
             ckpt = torch.load(pretrained_ckpt, map_location='cpu')
@@ -1007,20 +1006,20 @@ def lightvit_crossattn_posembed_map_token_base(pretrained=False, **kwargs):
 
 @register_network('lightvit_posembed_base')
 def lightvit_posembed_base(num_channels=3, num_classes=8, **kwargs):
-    model_kwargs = dict(patch_size=8,
-                        embed_dims=[128, 256, 512],
-                        num_layers=[3, 8, 6],
-                        num_classes=num_classes,
-                        num_heads=[
-                            4,
-                            8,
-                            16,
-                        ],
-                        mlp_ratios=[8, 4, 4],
-                        num_tokens=24,
-                        embed_layer=ConvStemWithPos,
-                        mae_pretrained_ckpt = kwargs['mae_pretrained_ckpt'] if 'mae_pretrained_ckpt' in kwargs else None
-                        **kwargs)
+    model_kwargs = dict(
+        patch_size=8,
+        embed_dims=[128, 256, 512],
+        num_layers=[3, 8, 6],
+        num_classes=num_classes,
+        num_heads=[
+            4,
+            8,
+            16,
+        ],
+        mlp_ratios=[8, 4, 4],
+        num_tokens=24,
+        embed_layer=ConvStemWithPos,
+        mae_pretrained_ckpt=kwargs['mae_pretrained_ckpt'] if 'mae_pretrained_ckpt' in kwargs else None**kwargs)
     model = LightViT_multiview(**model_kwargs)
     return model
 

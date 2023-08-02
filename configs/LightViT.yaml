@@ -214,10 +214,10 @@ val_dataset:
       concat: False
     interpolation: 'nearest'
 optimizer:
-  name: Adam
+  name: AdamW
   args:
     lr: 1.e-4
-    weight_decay: 0.967
+    weight_decay: 0.001
 
 scheduler:
   name: StepLR
@@ -226,7 +226,7 @@ scheduler:
     gamma: 0.5
 
 epochs: 50
-train_batch_size: 20
+train_batch_size: 16
 train_num_workers: 4
 val_batch_size: 4
 val_num_workers: 2

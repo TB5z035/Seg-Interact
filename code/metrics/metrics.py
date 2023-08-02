@@ -2,6 +2,7 @@ from . import register_metric
 import numpy as np
 import torch
 
+
 class BaseMetric:
 
     def __init__(self, *args, **kwargs) -> None:
@@ -90,14 +91,14 @@ class Acc(BaseMetric):
         self.hist_stat += np.bincount(flatten_pred[mask] + flatten_target[mask] * self.num_class,
                                       minlength=self.num_class**2).reshape(self.num_class, self.num_class)
 
-    def calc(self):  
-        correct = np.diag(self.hist_stat).sum()  
-        total = self.hist_stat.sum()  
-        accuracy = correct / total  
-        return accuracy 
+    def calc(self):
+        correct = np.diag(self.hist_stat).sum()
+        total = self.hist_stat.sum()
+        accuracy = correct / total
+        return accuracy
 
-    def log(self, logger, writer=None, global_iter=None, name_prefix=''):  
-        accuracy = self.calc()  
-        logger.info(f'Overall Accuracy: {accuracy:.4f}')  
-        if writer is not None:  
-            writer.add_scalar(f'{name_prefix}{self.NAME}/Overall', accuracy, global_iter)  
+    def log(self, logger, writer=None, global_iter=None, name_prefix=''):
+        accuracy = self.calc()
+        logger.info(f'Overall Accuracy: {accuracy:.4f}')
+        if writer is not None:
+            writer.add_scalar(f'{name_prefix}{self.NAME}/Overall', accuracy, global_iter)
