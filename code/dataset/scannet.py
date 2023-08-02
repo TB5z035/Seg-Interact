@@ -13,6 +13,8 @@ from torch.utils.data import Dataset
 from .transforms import TRANSFORMS, Compose, parse_transform
 from . import register_dataset
 
+from ..utils.misc import seq_2_ordered_set
+
 is_valid_scene_id = re.compile(r'^scene\d{4}_\d{2}$').match
 logger = logging.getLogger('scannet')
 
@@ -366,7 +368,6 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         self.limit_dict = torch.load(osp.join(root, 'data_efficient', 'points', f'points{limit}'))
 
     def _collate_fn(self, batch):
-        # inputs, labels, maps = list(zip(*batch))
         inputs, labels, extras = list(zip(*batch))
         maps = tuple(extra['maps'] for extra in extras)
         scene_ids = tuple(
@@ -401,13 +402,13 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
     def _prepare_item(self, index):
         scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
         coords, colors, faces, labels = self._load_ply(scene_path)
-        gt_labels = labels
+        gt_labels = labels.copy()
         scene_id = self.scene_ids[index]
         limit = self.limit_dict[scene_id]
         mask = np.ones_like(labels, dtype=bool)
         mask[limit] = False
         labels[mask] = 255
-        _, gt_labels, _ = self.transform((coords, faces, colors[:, :3]), gt_labels, None)
+        _, gt_labels, _ = self.transform((coords.copy(), faces.copy(), colors.copy()[:, :3]), gt_labels, None)
         (coords, faces, colors), labels, _ = self.transform((coords, faces, colors[:, :3]), labels, None)
         return (coords, faces, colors), labels, {'path': scene_path, 'gt_labels': gt_labels}
 
