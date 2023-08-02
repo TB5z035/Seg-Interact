@@ -64,9 +64,11 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         train_sampler = None
 
+
+# (train_sampler is None),
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.train_batch_size,
-                                  shuffle=(train_sampler is None),
+                                  shuffle=False,
                                   num_workers=args.train_num_workers,
                                   sampler=train_sampler,
                                   collate_fn=train_dataset._collate_fn)
@@ -119,7 +121,8 @@ def train(local_rank=0, world_size=1, args=None):
     if args.labeling_inference:
         inference_count = get_n_update_count(args.inference_count_path, reset=args.inference_count_reset)
         label_update(args, network, train_dataloader, point_criterion, inference_count)
-        highest_loss_filtering(args, args.train_dataset['args']['root'], inference_count)
+        #highest_loss_filtering(args, args.train_dataset['args']['root'], inference_count)
+        #exit()
 
     for epoch_idx in range(start_epoch, args.epochs):
         if args.labeling_inference:
@@ -178,13 +181,20 @@ def train_one_epoch(model,
         output = model(to_device(inputs, device))
 
         if (dataset_path and inference_count) is not None:
+
+            for scene in scene_ids:
+                print(osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{inference_count}.npy'))
+
             labels = torch.cat([
                 torch.from_numpy(
                     np.load(osp.join(dataset_path, 'scans', scene,
                                      f'{scene}_updated_labels_iter_{inference_count}.npy'))) for scene in scene_ids
             ])
+
             labels = labels[unique_maps]
             labels = torch.from_numpy(train_loader.dataset._convert_labels(labels))
+        print(labels.shape)
+        exit()
         loss = criterion(output, to_device(labels, device))
         loss.backward()
         optimizer.step()
@@ -207,9 +217,6 @@ if __name__ == '__main__':
     init_directory(args, args_text)
     args.port = random.randint(10000, 20000)
     logger.info(args_text)
-
-    #clear_paths(args.train_dataset['args']['root'])
-    #exit()
 
     if args.world_size == 1:
         train(args=args)
