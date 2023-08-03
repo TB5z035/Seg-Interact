@@ -49,7 +49,8 @@ def train(local_rank=0, world_size=1, args=None):
 
     # Dataset
     train_dataset = DATASETS[args.train_dataset['name']](**(args.train_dataset['args'] | {
-        'labeling_inference': args.labeling_inference
+        'labeling_inference': args.labeling_inference,
+        'inference_save_path': args.inference_save_path
     }))
     val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
     inf_dataset = DATASETS[args.inf_dataset['name']](**args.inf_dataset['args'])
@@ -128,7 +129,7 @@ def train(local_rank=0, world_size=1, args=None):
     # Labeling Inference Init
     if args.labeling_inference:
         inference_count = get_n_update_count(args.inference_count_path, reset=args.inference_count_reset)
-        clean_paths(args.train_dataset['args']['root'])
+        clean_paths(args.inference_save_path)
 
     for epoch_idx in range(start_epoch, args.epochs):
         # Train
@@ -149,7 +150,7 @@ def train(local_rank=0, world_size=1, args=None):
             save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
         # Labeling Inference
         if args.labeling_inference and epoch_idx % args.labeling_inference_epoch == 0:
-            print(inference_count)
+            # print(inference_count)
             label_update(args, network, inf_dataloader, point_criterion, inference_count)
             highest_loss_filtering(args, args.inf_dataset['args']['root'], inference_count)
             inference_count = get_n_update_count(args.inference_count_path, reset=False)
