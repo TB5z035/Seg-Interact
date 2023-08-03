@@ -20,6 +20,8 @@ from .validate import validate
 from .pseudo_update import label_update, get_n_update_count
 from ..policy.point_selection import highest_loss_filtering
 
+import os
+
 device = get_device()
 logger = logging.getLogger('train')
 
@@ -152,7 +154,7 @@ def train(local_rank=0, world_size=1, args=None):
         if args.labeling_inference and epoch_idx % args.labeling_inference_epoch == 0:
             # print(inference_count)
             label_update(args, network, inf_dataloader, point_criterion, inference_count)
-            highest_loss_filtering(args, args.inf_dataset['args']['root'], inference_count)
+            highest_loss_filtering(args, args.inference_save_path, inference_count)
             inference_count = get_n_update_count(args.inference_count_path, reset=False)
     save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 

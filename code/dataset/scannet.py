@@ -249,6 +249,8 @@ class ScannetDataset(Dataset):
         return coords, colors, faces, self._convert_labels(labels)
 
     def _load_ply_inference(self, scene_path, original_scene_path):
+        if not osp.exists(scene_path):
+            os.makedirs(scene_path, exist_ok=True)
         inference_scene_files = [i for i in os.listdir(scene_path)]
         original_scene_files = [i for i in os.listdir(original_scene_path)]
 

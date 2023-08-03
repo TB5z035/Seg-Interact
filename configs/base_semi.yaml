@@ -4,7 +4,7 @@ world_size: 1
 save_epoch_freq: 5
 val_epoch_freq: 1
 labeling_inference_epoch: 5
-update_points_num: 20
+update_points_num: 0
 
 model: MinkUNet34C
 
