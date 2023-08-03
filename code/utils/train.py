@@ -83,7 +83,9 @@ def train(local_rank=0, world_size=1, args=None):
                                 shuffle=False,
                                 num_workers=args.val_num_workers,
                                 collate_fn=inf_dataset._collate_fn)
-    logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}\nInf dataloader: {len(inf_dataloader)}")
+    logger.info(
+        f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}\nInf dataloader: {len(inf_dataloader)}"
+    )
 
     # Model
     network = NETWORKS[args.model](train_dataset.num_channel, train_dataset.num_train_classes)

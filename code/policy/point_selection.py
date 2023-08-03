@@ -46,4 +46,3 @@ def highest_loss_filtering(args, dataset_path: str, epoch: int):
             elif update_num == 0:
                 np.save(osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{epoch}.npy'),
                         prev_updated_labels)
-
