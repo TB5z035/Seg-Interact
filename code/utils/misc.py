@@ -111,7 +111,7 @@ def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch) 
     np.save(osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'), loss)
 
 
-def clear_paths(dataset_path: str) -> None:
+def clean_paths(dataset_path: str) -> None:
     '''
     Used to clear pseudo labeling paths
     '''
@@ -122,6 +122,7 @@ def clear_paths(dataset_path: str) -> None:
             if not (i.endswith('_scene.npy') or i.endswith('_labels.npy') or i.endswith('.ply'))
         ]
         for file in scene_del_files:
+            # print(osp.join(dataset_path, 'scans', scene, file))
             os.remove(osp.join(dataset_path, 'scans', scene, file))
 
 
