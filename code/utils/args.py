@@ -56,6 +56,9 @@ def get_args():
                         default=200,
                         help='number of points to update after each inference')
     parser.add_argument("--labeling_inference_epoch", type=int, default=5)
+    parser.add_argument("--inference_save_path",
+                        type=str,
+                        default='/home/Guest/caiz/labeling_inference/run1')
 
     # Do we have a config file to parse?
     config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)
