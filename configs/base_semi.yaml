@@ -4,7 +4,7 @@ world_size: 1
 save_epoch_freq: 5
 val_epoch_freq: 1
 labeling_inference_epoch: 5
-update_points_num: 0
+update_points_num: 20
 
 model: MinkUNet34C
 
@@ -75,10 +75,11 @@ scheduler:
     step_size: 20
     gamma: 0.5
 
-epochs: 1000
+epochs: 200
 train_batch_size: 6
 train_num_workers: 3
 val_batch_size: 2
 val_num_workers: 1
 seed: 0
 inference_count_path: '/home/Guest/caiz/Seg-Interact/utils'
+inference_save_path: '/home/Guest/caiz/labeling_inference/run1'
