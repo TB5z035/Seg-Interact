@@ -248,14 +248,11 @@ class ScannetDataset(Dataset):
         coords, colors, faces, labels = read_plyfile(data_path, label_path)
         return coords, colors, faces, self._convert_labels(labels)
 
-    def _load_ply_inference(self, scene_path):
-        inference_scene_files = [
-            i for i in os.listdir(scene_path)
-            if not (i.endswith('_scene.npy') or i.endswith('_labels.npy') or i.endswith('.ply'))
-        ]
-        original_scene_files = [i for i in os.listdir(scene_path) if i not in inference_scene_files]
+    def _load_ply_inference(self, scene_path, original_scene_path):
+        inference_scene_files = [i for i in os.listdir(scene_path)]
+        original_scene_files = [i for i in os.listdir(original_scene_path)]
 
-        coords, colors, faces, labels = self._load_ply(scene_path)
+        coords, colors, faces, labels = self._load_ply(original_scene_path)
         if len(inference_scene_files) != 0:
             original_scene_file = [i for i in original_scene_files if i.endswith('_scene.npy')]
             scene_id = re.findall(r'(.*)_scene.npy', original_scene_file[0])[0]
@@ -378,7 +375,13 @@ class ScanNetQuantized(ScannetDataset):
 @register_dataset('scannet_quantized_limited')
 class ScanNetQuantizedLimited(ScanNetQuantized):
 
-    def __init__(self, root, split='train', transform=None, limit=None, labeling_inference=False):
+    def __init__(self,
+                 root,
+                 split='train',
+                 transform=None,
+                 limit=None,
+                 labeling_inference=False,
+                 inference_save_path=None):
         super().__init__(root, split, transform)
         assert limit in [20, 50, 100, 200], f'Invalid limit {limit}'
         assert osp.exists(osp.join(
@@ -386,13 +389,13 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         self.limit = limit
         self.limit_dict = torch.load(osp.join(root, 'data_efficient', 'points', f'points{limit}'))
         self.labeling_inference = labeling_inference
+        self.inf_save_path = inference_save_path
 
     def _collate_fn(self, batch):
         inputs, labels, extras = list(zip(*batch))
         maps = tuple(extra['maps'] for extra in extras)
         scene_ids = tuple(
             extras[extra_idx]['scene_id'] for extra_idx in range(len(extras)) for _ in range(len(labels[extra_idx])))
-        #gt_labels = tuple(extra['gt_labels'] for extra in extras)
 
         coords, faces, feats = list(zip(*inputs))
         indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
@@ -400,7 +403,6 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         bfeats = torch.cat(feats, 0)
         bfaces = torch.cat(faces, 0)
         blabels = torch.cat(labels, 0)
-        #bgt_labels = torch.cat(gt_labels, 0)
 
         map_list, inv_map_list = list(zip(*maps))
         map_cum_length = torch.cumsum(torch.tensor([0] + [len(m) for m in inv_map_list]), 0)
@@ -416,9 +418,13 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         return (bcoords, bfaces, bfeats), blabels, {'maps': (bmap, binv_map), 'scene_ids': scene_ids}
 
     def _prepare_item(self, index):
-        scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
-        coords, colors, faces, labels = self._load_ply_inference(
-            scene_path) if self.labeling_inference else self._load_ply(scene_path)
+        original_scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
+        if self.labeling_inference:
+            scene_path = osp.join(self.inf_save_path, self.scene_ids[index])
+            coords, colors, faces, labels = self._load_ply_inference(scene_path, original_scene_path)
+        else:
+            coords, colors, faces, labels = self._load_ply(original_scene_path)
+
         scene_id = self.scene_ids[index]
         limit = self.limit_dict[scene_id]
         mask = np.ones_like(labels, dtype=bool)

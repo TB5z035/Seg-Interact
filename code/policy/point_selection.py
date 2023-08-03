@@ -7,14 +7,14 @@ from tqdm import tqdm
 logger = logging.getLogger('labeling_inference: filtering')
 
 
-def highest_loss_filtering(args, dataset_path: str, epoch: int):
+def highest_loss_filtering(args, inf_save_path: str, epoch: int):
     logger.info(f"Filtering points from with highest loss criterions {epoch}")
-    assert osp.exists(dataset_path), f'dataset path {dataset_path} does not exist'
-    scenes = os.listdir(osp.join(dataset_path, 'scans'))
+    assert osp.exists(inf_save_path), f'dataset path {inf_save_path} does not exist'
+    scenes = os.listdir(inf_save_path)
     for scene in tqdm(scenes):
-        scene_loss_path = osp.join(dataset_path, 'scans', scene, f'{scene}_loss_iter_{epoch}.npy')
-        scene_labels_path = osp.join(dataset_path, 'scans', scene, f'{scene}_labels_iter_{epoch}.npy')
-        prev_updated_path = osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{epoch-1}.npy')
+        scene_loss_path = osp.join(inf_save_path, scene, f'{scene}_loss_iter_{epoch}.npy')
+        scene_labels_path = osp.join(inf_save_path, scene, f'{scene}_labels_iter_{epoch}.npy')
+        prev_updated_path = osp.join(inf_save_path, scene, f'{scene}_updated_labels_iter_{epoch-1}.npy')
         if osp.exists(scene_loss_path) and osp.exists(scene_labels_path) and osp.exists(prev_updated_path):
             scene_losses, prev_updated_labels, (
                 scene_predictions,
@@ -41,8 +41,7 @@ def highest_loss_filtering(args, dataset_path: str, epoch: int):
                 prev_updated_labels[filtered_point_indices] = scene_gt_labels[filtered_point_indices]
                 prev_updated_labels[excluded_point_indices] = 0
                 scene_updated_labels = prev_updated_labels
-                np.save(osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{epoch}.npy'),
+                np.save(osp.join(inf_save_path, scene, f'{scene}_updated_labels_iter_{epoch}.npy'),
                         scene_updated_labels)
             elif update_num == 0:
-                np.save(osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{epoch}.npy'),
-                        prev_updated_labels)
+                np.save(osp.join(inf_save_path, scene, f'{scene}_updated_labels_iter_{epoch}.npy'), prev_updated_labels)

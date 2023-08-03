@@ -93,37 +93,30 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
 '''Functionalities for Saving Pseudo Label Data'''
 
 
-def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
-    assert osp.exists(dataset_path), f'dataset path {dataset_path} does not exist'
-    scene_path = osp.join(dataset_path, 'scans', scene_id)
-    # os.makedirs(scene_path, exist_ok=True)
-    # print(labels)
-    # print(osp.join(scene_path, f'{scene_id}_labels_iter_{str(epoch)}.npy'))
+def save_pseudo_labels(labels: np.ndarray, save_path: str, scene_id: str, epoch) -> None:
+    assert osp.exists(save_path), f'dataset path {save_path} does not exist'
+    scene_path = osp.join(save_path, scene_id)
+    os.makedirs(scene_path, exist_ok=True)
     np.save(osp.join(scene_path, f'{scene_id}_labels_iter_{str(epoch)}.npy'), labels)
 
 
-def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
-    assert osp.exists(dataset_path), f'dataset path {dataset_path} does not exist'
-    scene_path = osp.join(dataset_path, 'scans', scene_id)
-    # os.makedirs(scene_path, exist_ok=True)
-    # print(loss)
-    # print(osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'))
+def save_pseudo_loss(loss: np.ndarray, save_path: str, scene_id: str, epoch) -> None:
+    assert osp.exists(save_path), f'dataset path {save_path} does not exist'
+    scene_path = osp.join(save_path, scene_id)
+    os.makedirs(scene_path, exist_ok=True)
     np.save(osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'), loss)
 
 
-def clean_paths(dataset_path: str) -> None:
+def clean_paths(save_path: str) -> None:
     '''
     Used to clear pseudo labeling paths
     '''
-    scenes = os.listdir(osp.join(dataset_path, 'scans'))
+    scenes = os.listdir(save_path)
     for scene in scenes:
-        scene_del_files = [
-            i for i in os.listdir(osp.join(dataset_path, 'scans', scene))
-            if not (i.endswith('_scene.npy') or i.endswith('_labels.npy') or i.endswith('.ply'))
-        ]
+        scene_del_files = [i for i in os.listdir(osp.join(save_path, scene))]
         for file in scene_del_files:
             # print(osp.join(dataset_path, 'scans', scene, file))
-            os.remove(osp.join(dataset_path, 'scans', scene, file))
+            os.remove(osp.join(save_path, scene, file))
 
 
 def seq_2_ordered_set(seq):

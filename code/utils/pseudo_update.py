@@ -53,9 +53,8 @@ def label_update(args, model, inf_loader, criterion, epoch):
                     gt_label_ids = inf_loader.dataset.label_trainid_2_id(scene_gt_labels)
                     assert len(scene_loss) == len(pred_label_ids) == len(
                         gt_label_ids), 'labeling inference dimensions mismatch'
-                    save_pseudo_labels(np.stack((pred_label_ids, gt_label_ids)), args.train_dataset['args']['root'],
-                                       scene, epoch)
-                    save_pseudo_loss(scene_loss, args.train_dataset['args']['root'], scene, epoch)
+                    save_pseudo_labels(np.stack((pred_label_ids, gt_label_ids)), args.inference_save_path, scene, epoch)
+                    save_pseudo_loss(scene_loss, args.inference_save_path, scene, epoch)
                     if epoch == 0:
                         limit_mask = np.ones_like(np.arange(this_scene_count), dtype=bool)
                         limit = limit_dict[scene]
@@ -65,9 +64,8 @@ def label_update(args, model, inf_loader, criterion, epoch):
                         prev_label_ids = inf_loader.dataset.label_trainid_2_id(prev_labels)
                         assert len(prev_label_ids) == len(
                             gt_label_ids), 'labeling inference dimensions mismatch at epoch 0'
-                        np.save(
-                            osp.join(args.train_dataset['args']['root'], 'scans', scene,
-                                     f'{scene}_updated_labels_iter_{epoch-1}.npy'), prev_label_ids)
+                        np.save(osp.join(args.inference_save_path, scene, f'{scene}_updated_labels_iter_{epoch-1}.npy'),
+                                prev_label_ids)
                     prev_scene_count += this_scene_count
 
 
