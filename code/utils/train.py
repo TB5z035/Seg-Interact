@@ -15,10 +15,10 @@ from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clear_paths, seq_2_ordered_set
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clean_paths, seq_2_ordered_set
 from .validate import validate
 from .pseudo_update import label_update, get_n_update_count
-from ..policy.filtering_policy import highest_loss_filtering
+from ..policy.point_selection import highest_loss_filtering
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -48,12 +48,15 @@ def train(local_rank=0, world_size=1, args=None):
     writer = init_logger(args)
 
     # Dataset
-    train_dataset = DATASETS[args.train_dataset['name']](**args.train_dataset['args'])
-
+    train_dataset = DATASETS[args.train_dataset['name']](**(args.train_dataset['args'] | {
+        'labeling_inference': args.labeling_inference
+    }))
     val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
+    inf_dataset = DATASETS[args.inf_dataset['name']](**args.inf_dataset['args'])
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
-    logger.info(f"Train dataset: {args.train_dataset}, Val dataset: {args.val_dataset}")
+    logger.info(
+        f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}\nInf dataset: {args.inf_dataset}")
 
     # DataLoader
     if world_size > 1:
@@ -64,11 +67,9 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         train_sampler = None
 
-
-# (train_sampler is None),
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=args.train_batch_size,
-                                  shuffle=False,
+                                  shuffle=(train_sampler is None),
                                   num_workers=args.train_num_workers,
                                   sampler=train_sampler,
                                   collate_fn=train_dataset._collate_fn)
@@ -77,7 +78,12 @@ def train(local_rank=0, world_size=1, args=None):
                                 shuffle=False,
                                 num_workers=args.val_num_workers,
                                 collate_fn=val_dataset._collate_fn)
-    logger.info(f"Train dataloader: {len(train_dataloader)}, Val dataloader: {len(val_dataloader)}")
+    inf_dataloader = DataLoader(inf_dataset,
+                                batch_size=args.val_batch_size,
+                                shuffle=False,
+                                num_workers=args.val_num_workers,
+                                collate_fn=inf_dataset._collate_fn)
+    logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}\nInf dataloader: {len(inf_dataloader)}")
 
     # Model
     network = NETWORKS[args.model](train_dataset.num_channel, train_dataset.num_train_classes)
@@ -120,18 +126,9 @@ def train(local_rank=0, world_size=1, args=None):
     # Labeling Inference Init
     if args.labeling_inference:
         inference_count = get_n_update_count(args.inference_count_path, reset=args.inference_count_reset)
-        label_update(args, network, train_dataloader, point_criterion, inference_count)
-        #highest_loss_filtering(args, args.train_dataset['args']['root'], inference_count)
-        #exit()
+        clean_paths(args.train_dataset['args']['root'])
 
     for epoch_idx in range(start_epoch, args.epochs):
-        if args.labeling_inference:
-            labeling_inference_args = {
-                'dataset_path': args.train_dataset['args']['root'],
-                'labeling_inference_count': inference_count
-            }
-        else:
-            labeling_inference_args = {}
         # Train
         train_one_epoch(network,
                         optimizer,
@@ -141,8 +138,7 @@ def train(local_rank=0, world_size=1, args=None):
                         global_iter,
                         scheduler=scheduler,
                         val_loader=val_dataloader,
-                        writer=writer,
-                        **labeling_inference_args)
+                        writer=writer)
 
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
@@ -151,11 +147,11 @@ def train(local_rank=0, world_size=1, args=None):
             save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
         # Labeling Inference
         if args.labeling_inference and epoch_idx % args.labeling_inference_epoch == 0:
+            print(inference_count)
+            label_update(args, network, inf_dataloader, point_criterion, inference_count)
+            highest_loss_filtering(args, args.inf_dataset['args']['root'], inference_count)
             inference_count = get_n_update_count(args.inference_count_path, reset=False)
-            label_update(args, network, train_dataloader, point_criterion, inference_count)
-            highest_loss_filtering(args, args.train_dataset['args']['root'], inference_count)
     save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
-    # clear_paths(args.train_dataset['args']['root'])
 
 
 def train_one_epoch(model,
@@ -167,34 +163,12 @@ def train_one_epoch(model,
                     logging_freq=10,
                     scheduler=None,
                     val_loader=None,
-                    writer=None,
-                    **kwargs):
+                    writer=None):
     model.train()
-    # Checking Whether Using Inference Updated Labels
-    dataset_path, inference_count = (kwargs['dataset_path'],
-                                     kwargs['labeling_inference_count']) if len(kwargs) != 0 else (None, None)
 
     for i, (inputs, labels, extras) in enumerate(train_loader):
-        unique_maps, _ = extras['maps']
-        scene_ids = seq_2_ordered_set(extras['scene_ids'])
         optimizer.zero_grad()
         output = model(to_device(inputs, device))
-
-        if (dataset_path and inference_count) is not None:
-
-            for scene in scene_ids:
-                print(osp.join(dataset_path, 'scans', scene, f'{scene}_updated_labels_iter_{inference_count}.npy'))
-
-            labels = torch.cat([
-                torch.from_numpy(
-                    np.load(osp.join(dataset_path, 'scans', scene,
-                                     f'{scene}_updated_labels_iter_{inference_count}.npy'))) for scene in scene_ids
-            ])
-
-            labels = labels[unique_maps]
-            labels = torch.from_numpy(train_loader.dataset._convert_labels(labels))
-        print(labels.shape)
-        exit()
         loss = criterion(output, to_device(labels, device))
         loss.backward()
         optimizer.step()
