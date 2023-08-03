@@ -13,6 +13,7 @@ train_dataset:
   args:
     root: /hdd1/Guest/tb5zhh/datasets/ScanNet
     split: train
+    limit: 100
     transform:
       - elastic_distortion:
           distortion_params: 
@@ -45,12 +46,19 @@ train_dataset:
       - point_to_center:
       - point_cloud_size_limit:
           max_num: 200000
-    limit: 100
 val_dataset:
   name: scannet_quantized_fast
   args: 
     root: /hdd1/Guest/tb5zhh/datasets/ScanNet
     split: val
+    transform:
+      - point_chromatic_normalize:
+      - point_to_center:
+inf_dataset:
+  name: scannet_quantized_fast
+  args: 
+    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
+    split: train
     transform:
       - point_chromatic_normalize:
       - point_to_center:
@@ -70,7 +78,7 @@ scheduler:
 epochs: 1000
 train_batch_size: 1 #6
 train_num_workers: 1 #3
-val_batch_size: 2
+val_batch_size: 1 #2
 val_num_workers: 1
 seed: 0
 inference_count_path: '/home/Guest/caiz/Seg-Interact/utils'
