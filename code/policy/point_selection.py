@@ -32,9 +32,8 @@ def highest_loss_filtering(args, inf_save_path: str, epoch: int):
             scene_losses[mask] = 0.
 
             # Selection and Update
-            update_num = args.update_points_num if (len(scene_losses) -
-                                                    existing_num) >= args.update_points_num else (len(scene_losses) -
-                                                                                                  existing_num)
+            update_num = args.update_points_num if (len(scene_losses) - existing_num) >= args.update_points_num else (
+                len(scene_losses) - existing_num)
             if update_num > 0:
                 filtered_point_indices = np.argpartition(scene_losses, -update_num)[-update_num:]
                 excluded_point_indices = np.delete(np.arange(len(scene_losses)), filtered_point_indices)
