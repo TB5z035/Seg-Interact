@@ -10,21 +10,21 @@ device = get_device()
 logger = logging.getLogger('labeling_inference: inference')
 
 
-def label_update(args, model, train_loader, criterion, epoch):
+def label_update(args, model, inf_loader, criterion, epoch):
     if get_local_rank() == 0:
         logger.info(f"Performing labeling inference {epoch}")
         model.eval()
-        with torch.no_grad():
-            for _, (inputs, labels, extras) in enumerate(tqdm(train_loader)):
-                pass
-                '''_, inv_map = extras['maps']
-                gt_labels = extras['gt_labels']
+        limit_dict = torch.load(
+            osp.join(args.train_dataset['args']['root'], 'data_efficient', 'points',
+                     f'points{args.train_dataset["args"]["limit"]}'))
 
+        with torch.no_grad():
+            for i, (inputs, labels, extras) in enumerate(tqdm(inf_loader)):
+                _, inv_map = extras['maps']
                 output = model(to_device(inputs, device))
-                point_loss = criterion(output, to_device(gt_labels, device))
+                point_loss = criterion(output, to_device(labels, device))
                 point_loss = point_loss[inv_map].cpu().numpy()
-                gt_labels = gt_labels[inv_map].cpu().numpy()
-                labels = labels[inv_map].cpu().numpy()
+                gt_labels = labels[inv_map]
 
                 preds = output.argmax(dim=1)
                 preds = preds[inv_map]
@@ -34,9 +34,9 @@ def label_update(args, model, train_loader, criterion, epoch):
                         pred = 255
 
                 # Applying Inv_Mapping to Scene Names
-                scenes_set = seq_2_ordered_set(extras['scene_ids'])
+                scenes_set = seq_2_ordered_set(extras['scene_id'])
                 matching_index = np.arange(len(scenes_set))
-                scenes = extras['scene_ids']
+                scenes = extras['scene_id']
                 match_dict = dict(zip(scenes_set, matching_index))
                 scenes = [match_dict.get(scene) for scene in scenes]
                 scenes = torch.tensor(scenes)[inv_map]
@@ -48,19 +48,27 @@ def label_update(args, model, train_loader, criterion, epoch):
                     this_scene_count = scenes.count(scene)
                     scene_loss = point_loss[prev_scene_count:prev_scene_count + this_scene_count]
                     scene_preds = preds[prev_scene_count:prev_scene_count + this_scene_count]
-                    pred_label_ids = train_loader.dataset.label_trainid_2_id(scene_preds)
+                    pred_label_ids = inf_loader.dataset.label_trainid_2_id(scene_preds)
                     scene_gt_labels = gt_labels[prev_scene_count:prev_scene_count + this_scene_count]
-                    gt_label_ids = train_loader.dataset.label_trainid_2_id(scene_gt_labels)
+                    gt_label_ids = inf_loader.dataset.label_trainid_2_id(scene_gt_labels)
+                    assert len(scene_loss) == len(pred_label_ids) == len(
+                        gt_label_ids), 'labeling inference dimensions mismatch'
                     save_pseudo_labels(np.stack((pred_label_ids, gt_label_ids)), args.train_dataset['args']['root'],
                                        scene, epoch)
                     save_pseudo_loss(scene_loss, args.train_dataset['args']['root'], scene, epoch)
                     if epoch == 0:
-                        prev_labels = labels[prev_scene_count:prev_scene_count + this_scene_count]
-                        prev_label_ids = train_loader.dataset.label_trainid_2_id(prev_labels)
+                        limit_mask = np.ones_like(np.arange(this_scene_count), dtype=bool)
+                        limit = limit_dict[scene]
+                        limit_mask[limit] = False
+                        prev_labels = gt_labels[prev_scene_count:prev_scene_count + this_scene_count]
+                        prev_labels[limit_mask] = 255
+                        prev_label_ids = inf_loader.dataset.label_trainid_2_id(prev_labels)
+                        assert len(prev_label_ids) == len(
+                            gt_label_ids), 'labeling inference dimensions mismatch at epoch 0'
                         np.save(
                             osp.join(args.train_dataset['args']['root'], 'scans', scene,
                                      f'{scene}_updated_labels_iter_{epoch-1}.npy'), prev_label_ids)
-                    prev_scene_count += this_scene_count'''
+                    prev_scene_count += this_scene_count
 
 
 def get_n_update_count(count_file_path: str, reset: bool):
