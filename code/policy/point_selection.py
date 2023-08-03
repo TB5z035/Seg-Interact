@@ -11,6 +11,7 @@ def highest_loss_filtering(args, inf_save_path: str, epoch: int):
     logger.info(f"Filtering points from with highest loss criterions {epoch}")
     assert osp.exists(inf_save_path), f'dataset path {inf_save_path} does not exist'
     scenes = os.listdir(inf_save_path)
+    print(len(scenes))
     for scene in tqdm(scenes):
         scene_loss_path = osp.join(inf_save_path, scene, f'{scene}_loss_iter_{epoch}.npy')
         scene_labels_path = osp.join(inf_save_path, scene, f'{scene}_labels_iter_{epoch}.npy')
