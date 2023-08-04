@@ -71,11 +71,10 @@ def label_update(args, model, inf_loader, criterion, epoch):
 
 def get_n_update_count(count_file_path: str, reset: bool):
     assert osp.exists(count_file_path), f'path to save count file {count_file_path} does not exist'
-    count_path = osp.join(count_file_path, 'inference_count.npy')
-    if osp.exists(count_path) and not reset:
-        current_count = np.load(count_path) + 1
-        np.save(count_path, current_count)
+    if osp.exists(count_file_path) and not reset:
+        current_count = np.load(count_file_path) + 1
+        np.save(count_file_path, current_count)
         return int(current_count)
     else:
-        np.save(count_path, np.array(0))
+        np.save(count_file_path, np.array(0))
         return 0
