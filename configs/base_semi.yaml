@@ -1,12 +1,13 @@
-pretrained: '/hdd1/Guest/tb5zhh/workspace/Seg-Interact/experiments/base/checkpoints/20230723_164149-last.pth'
-
 world_size: 1
 save_epoch_freq: 5
 val_epoch_freq: 1
 labeling_inference_epoch: 5
 update_points_num: 0
 
-model: MinkUNet34C
+model: 
+  name: MinkUNet34C
+  args:
+    pretrained: '/hdd1/Guest/tb5zhh/workspace/Seg-Interact/experiments/base/checkpoints/20230723_164149-last.pth'
 
 train_dataset: 
   name: scannet_quantized_limited_fast

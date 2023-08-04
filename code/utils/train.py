@@ -92,17 +92,16 @@ def train(local_rank=0, world_size=1, args=None):
     )
 
     # Model
-    network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes,
-                                           **args.model['args'])
+    network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes)
     network = network.to(device)
     # Load pretrained model
     if args.resume:
         logger.info(f"Resume training from {args.resume}")
         ckpt = torch.load(args.resume, map_location=device)
         network.load_state_dict(ckpt['network'])
-    elif args.pretrained:
+    elif args.model['args']['pretrained']:
         logger.info(f"Load pretrained model from {args.pretrained}")
-        ckpt = torch.load(args.pretrained, map_location=device)
+        ckpt = torch.load(args.model['args']['pretrained'], map_location=device)
         network.load_state_dict(ckpt['network'])
         pass
     network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
