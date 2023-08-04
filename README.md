@@ -28,7 +28,7 @@ python -m code.utils.train -c [config_path] --labeling_inference --inference_cou
 Within the [base_semi.yaml](base_semi.yaml) file, the following parameters are associated with active learning:
 
 ```yaml
-world_size: 1                                                                            #currently only supports 1
+world_size: 1                                                                            # currently only supports 1
 
 inf_dataset:
   name: scannet_quantized_fast
