@@ -22,6 +22,7 @@
 # Networks", CVPR'19 (https://arxiv.org/abs/1904.08755) if you use any part
 # of the code.
 import MinkowskiEngine as ME
+import numpy as np
 import torch
 import torch.nn as nn
 from MinkowskiEngine.modules.resnet_block import BasicBlock, Bottleneck
@@ -250,6 +251,42 @@ class MinkUNet34C(MinkUNet34):
     PLANES = (32, 64, 128, 256, 256, 128, 96, 96)
 
 
+class RunningStat(object):
+
+    def __init__(self) -> None:
+        self.mu = 0
+        self.S = 0
+        self.count = 0
+        self.init = False
+
+    def update(self, x):
+        """
+        shape of x: (N, ...)
+        """
+        assert not self.init or x.shape[1:] == self.mu.shape == self.S.shape
+        self.init = True
+        mu_local = x.mean(0)
+        count_local = x.shape[0]
+        _var = x.var(0, ddof=0) if isinstance(x, np.ndarray) else x.var(0, unbiased=False)
+        S_local = _var * count_local
+
+        frac = count_local / (count_local + self.count)
+        delta = frac * (mu_local - self.mu)
+
+        self.mu += delta
+        self.S += S_local + delta**2 * self.count / frac
+        self.count += count_local
+
+    def mean(self):
+        return self.mu
+
+    def var(self, unbiased=True):
+        if unbiased:
+            return self.S / (self.count - 1)
+        else:
+            return self.S / self.count
+
+
 class MinkUNetUNCBase(MinkUNetBase):
 
     def __init__(self, in_channels, out_channels, D=3):
@@ -260,6 +297,24 @@ class MinkUNetUNCBase(MinkUNetBase):
         out = self.repr(inputs)
         out = self.dropout(out)
         return self.final(out).F
+
+    def unc_infer(self, inputs, round=30):
+        mode = self.training
+
+        self.eval()
+        self.dropout.train()
+        with torch.no_grad():
+            stat = RunningStat()
+            for _ in range(round):
+                stat.update(self.forward(inputs).unsqueeze(0))
+
+            pred = stat.mean().argmax(dim=1)
+            # This implementation cause GPU oom
+            # uncertainty = stat.var(unbiased=False)[:, pred]
+            uncertainty = torch.gather(stat.var(unbiased=False), 1, pred.unsqueeze(1)).squeeze(1)
+
+        self.train(mode)
+        return pred, uncertainty
 
 
 class MinkUNet34UNC(MinkUNetUNCBase):
