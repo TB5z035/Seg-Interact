@@ -10,5 +10,5 @@ def register_dataset(dataset_name):
     return decorator
 
 
-# from . import scannet
+from . import scannet
 from . import multiview_classification

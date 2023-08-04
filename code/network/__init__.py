@@ -10,5 +10,5 @@ def register_network(network_name):
     return decorator
 
 
-# from . import minkunet
+from . import minkunet
 from . import lightvit
