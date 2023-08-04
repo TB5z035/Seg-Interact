@@ -433,7 +433,7 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         mask[limit] = False
         labels[mask] = 255
         (coords, faces, colors), labels, _ = self.transform((coords, faces, colors[:, :3]), labels, None)
-        return (coords, faces, colors), labels, {'path': scene_path}  #, 'gt_labels': gt_labels}
+        return (coords, faces, colors), labels, {'path': scene_path}
 
     def __getitem__(self, index) -> dict:
         (coords, faces, colors), labels, extra = self._prepare_item(index)
@@ -442,14 +442,12 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         colors = torch.from_numpy(colors)
         faces = torch.from_numpy(faces)
         labels = torch.from_numpy(labels.astype(np.int64))
-        #gt_labels = torch.from_numpy(gt_labels.astype(np.int64))
 
         coords = (coords / self.VOXEL_SIZE).to(torch.int32)
         unique_map, inverse_map = ME.utils.quantization.unique_coordinate_map(coords)
         coords = coords[unique_map].to(torch.float64)
         colors = colors[unique_map]
         labels = labels[unique_map]
-        #gt_labels = gt_labels[unique_map]
 
         return (coords, faces, colors), labels, {'maps': (unique_map, inverse_map), 'scene_id': self.scene_ids[index]}
 
