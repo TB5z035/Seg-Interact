@@ -1,4 +1,3 @@
-import MinkowskiEngine as ME
 import torch
 from torch.utils.data import DataLoader
 import logging
