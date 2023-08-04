@@ -8,14 +8,13 @@ Supported distributions:
 # %%
 import copy
 import os
-from typing import Any, Callable, Tuple, Optional
-
-from tqdm import tqdm
+from typing import Any, Callable, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as opt
 import scipy.special as sp
+from tqdm import tqdm
 
 ########################################################################################################################
 ## Possibility Distribution Functions
@@ -152,7 +151,7 @@ class MixtureDistribution:
             prob_a.sum() / len(data_arr),
         )
 
-    def test(self, data_arr, init=0.01) -> None:
+    def test(self, data_arr) -> np.ndarray:
         root = opt.root(self, data_arr.mean()).x[0]
         return data_arr < root
 
@@ -247,13 +246,20 @@ def fit(arr: np.ndarray,
         return None
 
 
-def mixture_filter(data_arr: np.ndarray, type: str, visualize=False, save_dir=None, step=30, quiet=True, num_trial=50):
+def mixture_filter(data_arr: np.ndarray,
+                   type: str,
+                   visualize=False,
+                   save_dir=None,
+                   step=30,
+                   quiet=True,
+                   num_trial=50,
+                   caption='final'):
     """
     Filter the data array `data_arr` with the mixture distribution `type`
     """
     Dist = GammaDistribution if type == 'gamma' else BetaDistribution
     fitted = []
-    r = tqdm(range(num_trial)) if quiet else range(num_trial)
+    r = tqdm(range(num_trial), desc="Fitting") if quiet else range(num_trial)
     for idx in r:
         if not quiet:
             print(f'#################################Fitting #{idx}###################################')
@@ -261,8 +267,14 @@ def mixture_filter(data_arr: np.ndarray, type: str, visualize=False, save_dir=No
         d = MixtureDistribution([Dist(*init_params[0]), Dist(*init_params[1])])
         fitted.append(fit(data_arr, d, step=step, quiet=quiet, visualize=visualize, save_dir=save_dir))
     errors = [distribution_error(d, data_arr) if d is not None else float('inf') for d in fitted]
-    visualize_fitting(fitted[np.argmin(errors)], data_arr, save_dir, 'final')
-    return fitted[np.argmin(errors)].test(data_arr), fitted[np.argmin(errors)], np.min(errors)
+    visualize_fitting(fitted[np.argmin(errors)], data_arr, save_dir, caption)
+    return fitted[np.argmin(errors)].test(data_arr), fitted[np.argmin(errors)].test, np.min(errors)
+
+
+def mixture_filter_trivial(data_arr: np.ndarray, *args, **kwargs):
+    hist, edges = np.histogram(data_arr, bins=500, density=True)
+    most_common = edges[np.argmax(hist)]
+    return data_arr < most_common, lambda x: x < most_common, 0
 
 
 def test_gamma():
