@@ -2,7 +2,7 @@ import random
 import logging
 import os.path as osp
 
-import MinkowskiEngine as ME
+# import MinkowskiEngine as ME
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -11,8 +11,10 @@ import torch.distributed as dist
 import tensorboardX
 
 from ..dataset import DATASETS
-from .metrics import IoU, mIoU
+# from .metrics import IoU, mIoU, Acc, MATRICS
+from ..metrics import METRICS
 from ..network import NETWORKS
+
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
 from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clean_paths, seq_2_ordered_set
@@ -68,12 +70,13 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         train_sampler = None
 
-    train_dataloader = DataLoader(train_dataset,
-                                  batch_size=args.train_batch_size,
-                                  shuffle=(train_sampler is None),
-                                  num_workers=args.train_num_workers,
-                                  sampler=train_sampler,
-                                  collate_fn=train_dataset._collate_fn)
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=args.train_batch_size,
+        shuffle=(train_sampler is None),
+        num_workers=args.train_num_workers,
+        sampler=train_sampler,
+        collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=args.val_batch_size,
                                 shuffle=False,
@@ -89,7 +92,8 @@ def train(local_rank=0, world_size=1, args=None):
     )
 
     # Model
-    network = NETWORKS[args.model](train_dataset.num_channel, train_dataset.num_train_classes)
+    network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes,
+                                           **args.model['args'])
     network = network.to(device)
     # Load pretrained model
     if args.resume:
@@ -145,7 +149,12 @@ def train(local_rank=0, world_size=1, args=None):
 
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
-            validate(network, val_dataloader, criterion, metrics=[mIoU, IoU], global_iter=global_iter[0], writer=writer)
+            validate(network,
+                     val_dataloader,
+                     criterion,
+                     metrics=[METRICS[metric] for metric in args.metrics],
+                     global_iter=global_iter[0],
+                     writer=writer)
         if epoch_idx % args.save_epoch_freq == 0:
             save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
         # Labeling Inference
