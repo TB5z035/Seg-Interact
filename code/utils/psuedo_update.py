@@ -1,9 +1,11 @@
-import torch
-import numpy as np
 import logging
+
+import numpy as np
+import torch
 from tqdm import tqdm
 
-from .misc import get_device, to_device, get_local_rank, save_pseudo_labels, save_pseudo_loss
+from .misc import (get_device, get_local_rank, save_pseudo_labels,
+                   save_pseudo_loss, to_device)
 
 device = get_device()
 logger = logging.getLogger('pseudo_label_update')

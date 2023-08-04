@@ -1,5 +1,6 @@
-import numpy as np
 import logging
+
+import numpy as np
 
 logger = logging.getLogger('transform_geometry')
 
@@ -55,5 +56,4 @@ def parse_transform(transforms: list):
         *[TRANSFORMS[list(t.keys())[0]](**(list(t.values())[0] if list(t.values())[0] else {})) for t in transforms])
 
 
-from . import geometry
-from . import feature
+from . import feature, geometry

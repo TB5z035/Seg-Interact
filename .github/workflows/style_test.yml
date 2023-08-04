@@ -1,6 +1,13 @@
-name: YAPF Formatting Check
+name: Style Test
 on: [push]
 jobs:
+  import-check:
+    name: Import Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: isort/isort-action@v1
+
   formatting-check:
     name: Formatting Check
     runs-on: ubuntu-latest

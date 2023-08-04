@@ -1,7 +1,9 @@
-import numpy as np
-import random
 import logging
-from . import register_transform, Transform
+import random
+
+import numpy as np
+
+from . import Transform, register_transform
 
 
 @register_transform('point_chromatic_normalize')

@@ -1,8 +1,10 @@
-import numpy as np
-import random
 import logging
+import random
+
+import numpy as np
 import scipy
-from . import register_transform, Transform
+
+from . import Transform, register_transform
 
 logger = logging.getLogger('transform_geometry')
 

@@ -1,23 +1,24 @@
-import random
 import logging
+import random
 
 import MinkowskiEngine as ME
 import numpy as np
-import torch
-from torch.utils.data import DataLoader
-import torch.multiprocessing as mp
-import torch.distributed as dist
 import tensorboardX
-import numpy as np
+import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
+from torch.utils.data import DataLoader
 
 from ..dataset import DATASETS
-from .metrics import IoU, mIoU
 from ..network import NETWORKS
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clear_paths
-from .validate import validate
+from .metrics import IoU, mIoU
+from .misc import (clear_paths, get_device, get_local_rank, get_time_str,
+                   get_world_size, init_directory, init_logger,
+                   save_checkpoint, to_device)
 from .psuedo_update import label_update
+from .validate import validate
 
 device = get_device()
 logger = logging.getLogger('train')

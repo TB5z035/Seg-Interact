@@ -5,8 +5,8 @@ Labels are stored in numpy array with shape (N, 1), where N is the number of poi
 import os
 import re
 
-from plyfile import PlyData
 import numpy as np
+from plyfile import PlyData
 from tqdm import tqdm
 
 
@@ -91,8 +91,8 @@ def preprocess_scannet(scannet_path: str, start=0, split=1, save_root=None) -> N
 
 
 if __name__ == '__main__':
-    import multiprocessing
     import argparse
+    import multiprocessing
     parser = argparse.ArgumentParser(description='Preprocess ScanNet dataset')
     parser.add_argument('--scannet_path', '-p', type=str, required=True, help='Path to ScanNet dataset')
     parser.add_argument('--save_root', '-s', type=str, default=None, required=False, help='Path to ScanNet dataset')

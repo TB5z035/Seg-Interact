@@ -1,1 +1,2 @@
-yapf -i -r .
+yapf -i -r -p -m .
+isort .
