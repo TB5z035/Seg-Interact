@@ -76,10 +76,10 @@ scheduler:
     gamma: 0.5
 
 epochs: 200
-train_batch_size: 6
-train_num_workers: 3
+train_batch_size: 4
+train_num_workers: 2
 val_batch_size: 2
 val_num_workers: 1
 seed: 0
-inference_count_path: '/home/Guest/caiz/Seg-Interact/utils'
+inference_count_path: '/home/Guest/caiz/labeling_inference/inference_count_1.npy'
 inference_save_path: '/home/Guest/caiz/labeling_inference/run1'
