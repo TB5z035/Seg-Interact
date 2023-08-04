@@ -3,11 +3,15 @@ import os.path as osp
 
 import yaml
 
-from .misc import get_time_str
+from .misc import get_time_str, get_world_size
 
 
 def get_args():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument("--world_size", type=int, default=get_world_size(), help="Number of GPUs to use [default: 1]")
+    # Action
+    parser.add_argument("--action", type=str, default="train", help="Action to perform [default: train]")
 
     # Network
     parser.add_argument("--model", type=str, default="MinkUNet34C", help="Model name [default: MinkUNet34C]")

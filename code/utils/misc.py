@@ -4,9 +4,9 @@ import os.path as osp
 import time
 
 import numpy as np
+import tensorboardX
 import torch
 import torch.distributed as dist
-import tensorboardX
 import yaml
 
 
@@ -30,7 +30,7 @@ def get_local_rank():
 
 def get_world_size():
     try:
-        return dist.get_world_size()
+        return torch.cuda.device_count()
     except:
         return 1
 
