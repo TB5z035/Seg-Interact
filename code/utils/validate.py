@@ -16,8 +16,7 @@ from ..optimizer import OPTIMIZERS, SCHEDULERS
 from ..policy.mixture_filter import mixture_filter, mixture_filter_trivial
 from .args import get_args
 from .metrics import IoU, mIoU
-from .misc import (clear_paths, get_device, get_local_rank, get_time_str,
-                   get_world_size, init_directory, init_logger,
+from .misc import (clear_paths, get_device, get_local_rank, get_time_str, get_world_size, init_directory, init_logger,
                    save_checkpoint, to_device)
 from .psuedo_update import label_update
 
@@ -78,6 +77,8 @@ def unc_inference(model, val_loader: DataLoader, criterion=None, metrics=[], wri
         with torch.no_grad():
             for idx, (inputs, _, extras) in enumerate(tqdm(val_loader, desc='Inference')):
                 # FIXME ugly implementation
+                if idx > 0:
+                    break
                 pred, uncertainty = to_device(model.module.unc_infer(to_device(inputs, device)), 'cpu')
                 if 'maps' in extras:
                     pred = pred[extras['maps'][1]]
@@ -107,11 +108,13 @@ def unc_inference(model, val_loader: DataLoader, criterion=None, metrics=[], wri
                                        caption=f'{i}')[1] for i in range(val_loader.dataset.num_train_classes)
             ]
             for scene_path, (pred, unc) in tqdm(results.items(), desc='Save'):
+                mask = np.zeros_like(pred, dtype=bool)
                 for cate_idx, filter_fn in enumerate(filter_fns):
-                    pred[pred == cate_idx][filter_fn(unc[pred == cate_idx])] = 255
+                    mask[pred == cate_idx] = np.logical_not(filter_fn(unc[pred == cate_idx]))
+                pred[mask] = val_loader.dataset.ignore_class
+                breakpoint()
                 val_loader.dataset.save_pred(scene_path,
                                              val_loader.dataset.label_trainid_2_id(pred),
-                                             pred,
                                              save_root=osp.join(args.exp_dir, 'pseudo', args.start_time))
 
         return 0, {}

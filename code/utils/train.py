@@ -14,8 +14,7 @@ from ..network import NETWORKS
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
 from .metrics import IoU, mIoU
-from .misc import (clear_paths, get_device, get_local_rank, get_time_str,
-                   get_world_size, init_directory, init_logger,
+from .misc import (clear_paths, get_device, get_local_rank, get_time_str, get_world_size, init_directory, init_logger,
                    save_checkpoint, to_device)
 from .psuedo_update import label_update
 from .validate import validate
