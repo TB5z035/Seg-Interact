@@ -1,0 +1,18 @@
+pretrained: /hdd1/Guest/tb5zhh/workspace/Seg-Interact/experiments/dropout/checkpoints/20230724_100234/epoch#600.pth
+action: validate
+seed: 42
+
+model: MinkUNet34CUNC
+
+val_dataset:
+  name: scannet_quantized_fast
+  args: 
+    root: /hdd1/Guest/tb5zhh/datasets/ScanNet
+    split: val
+    transform:
+      - point_chromatic_normalize:
+      - point_to_center:
+
+val_batch_size: 24
+val_num_workers: 16
+  
