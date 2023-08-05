@@ -17,7 +17,7 @@ from ..network import NETWORKS
 
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clean_paths, seq_2_ordered_set
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, save_checkpoint, clean_paths, clean_prev_paths
 from .validate import validate
 from .pseudo_update import label_update, get_n_update_count
 from ..policy.point_selection import highest_loss_filtering
@@ -161,6 +161,7 @@ def train(local_rank=0, world_size=1, args=None):
             label_update(args, network, inf_dataloader, point_criterion, inference_count)
             highest_loss_filtering(args, args.inference_save_path, inference_count)
             inference_count = get_n_update_count(args.inference_count_path, reset=False)
+            clean_prev_paths(args.inference_save_path)
         if epoch_idx != 0 and epoch_idx % 20 == 0:
             torch.cuda.empty_cache()
     save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')

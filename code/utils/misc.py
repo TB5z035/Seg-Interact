@@ -1,6 +1,7 @@
 import logging
 import os
 import os.path as osp
+import re
 import time
 
 import numpy as np
@@ -116,6 +117,23 @@ def clean_paths(save_path: str) -> None:
         scene_del_files = [i for i in os.listdir(osp.join(save_path, scene))]
         for file in scene_del_files:
             # print(osp.join(dataset_path, 'scans', scene, file))
+            os.remove(osp.join(save_path, scene, file))
+
+
+def clean_prev_paths(save_path: str) -> None:
+    '''
+    Used to clear unused pseudo labeling paths
+    '''
+    scenes = os.listdir(save_path)
+    for scene in scenes:
+        scene_files = [i for i in os.listdir(osp.join(save_path, scene))]
+        suffix = [re.findall(r'[-+]?\d+.npy', f) for f in scene_files]
+        epoch_nums = list(
+            map(int, np.concatenate([re.findall(r'[-+]?\d+', f[0]) for f in suffix])))
+        epoch_num = np.max(epoch_nums)
+        scene_del_files = [i for i in os.listdir(osp.join(save_path, scene)) if not i.endswith(f'iter_{epoch_num}.npy')]
+        for file in scene_del_files:
+            # print(osp.join(save_path, 'scans', scene, file))
             os.remove(osp.join(save_path, scene, file))
 
 
