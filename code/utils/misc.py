@@ -108,7 +108,7 @@ def save_pseudo_loss(loss: np.ndarray, save_path: str, scene_id: str, epoch) -> 
     np.save(osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'), loss)
 
 
-def clean_paths(save_path: str) -> None:
+def clean_inference_paths(save_path: str) -> None:
     '''
     Used to clear pseudo labeling paths
     '''
@@ -120,7 +120,7 @@ def clean_paths(save_path: str) -> None:
             os.remove(osp.join(save_path, scene, file))
 
 
-def clean_prev_paths(save_path: str) -> None:
+def clean_prev_inf_paths(save_path: str) -> None:
     '''
     Used to clear unused pseudo labeling paths
     '''
@@ -128,8 +128,7 @@ def clean_prev_paths(save_path: str) -> None:
     for scene in scenes:
         scene_files = [i for i in os.listdir(osp.join(save_path, scene))]
         suffix = [re.findall(r'[-+]?\d+.npy', f) for f in scene_files]
-        epoch_nums = list(
-            map(int, np.concatenate([re.findall(r'[-+]?\d+', f[0]) for f in suffix])))
+        epoch_nums = list(map(int, np.concatenate([re.findall(r'[-+]?\d+', f[0]) for f in suffix])))
         epoch_num = np.max(epoch_nums)
         scene_del_files = [i for i in os.listdir(osp.join(save_path, scene)) if not i.endswith(f'iter_{epoch_num}.npy')]
         for file in scene_del_files:
@@ -168,3 +167,72 @@ def validate_state_dicts(model_state_dict_1, model_state_dict_2):
         if not torch.allclose(v_1, v_2):
             print(f"Tensor mismatch: {v_1} vs {v_2}")
             return False
+
+
+'''Functionalities for Visualizing Point Cloud'''
+
+
+def npy_to_txt(data_path: str, save_path: str):
+    assert osp.exists(data_path), 'data path does not exist'
+    assert osp.exists(save_path), f'save path {save_path} does not exist'
+    scenes = sorted(os.listdir(data_path))
+    for scene in scenes:
+        scene_files = [
+            i for i in os.listdir(osp.join(data_path, scene))
+            if not (i.endswith('_base_coords_colors.npy') or i.endswith('_updated_indices.npy'))
+        ]
+        for file in scene_files:
+            scene_data = np.load(osp.join(data_path, scene, file), allow_pickle=True)
+            file_name = file.replace('.npy', '.txt')
+            np.savetxt(osp.join(save_path, scene, file_name), scene_data)
+
+
+def clean_vis_paths(vis_path: str):
+    assert osp.exists(vis_path), 'path to visualization files does not exist'
+    scenes = os.listdir(vis_path)
+    for scene in scenes:
+        del_files = [i for i in os.listdir(osp.join(vis_path, scene)) if not i.endswith('base_coords_colors.npy')]
+        for file in del_files:
+            os.remove(osp.join(vis_path, scene, file))
+
+
+def gen_excluded_pts_file(vis_path: str):
+    assert osp.exists(vis_path), 'path to visualization files does not exist'
+    scenes = sorted(os.listdir(vis_path))
+    for scene in scenes:
+        assert not osp.exists(osp.join(
+            vis_path, scene, f'{scene}_excluded_coords_colors.npy')), f'excluded points file for {scene} already exists'
+        if osp.exists(osp.join(vis_path, scene, f'{scene}_updated_indices.npy')):
+            scene_data = np.load(osp.join(vis_path, scene, f'{scene}_base_coords_colors.npy'), allow_pickle=True)
+            filtered_indices = np.load(osp.join(vis_path, scene, f'{scene}_updated_indices.npy'), allow_pickle=True)
+            excluded_indices = np.delete(np.arange(len(scene_data)), filtered_indices)
+            excluded_points = scene_data[excluded_indices]
+            np.save(osp.join(vis_path, scene, f'{scene}_excluded_coords_colors.npy'),
+                    excluded_points,
+                    allow_pickle=True)
+            break
+
+
+def set_color(coords_colors: np.ndarray, chosen_color: str):
+    color_dict = {
+        'white': (255, 255, 255),
+        'black': (0, 0, 0),
+        'red': (255, 0, 0),
+        'pink': (255, 85, 255),
+        'orange': (255, 85, 0),
+        'yellow': (255, 255, 0),
+        'blue': (0, 0, 255),
+        'cyan': (0, 255, 255),
+        'green': (0, 255, 0),
+        'purple': (170, 0, 255)
+    }
+    try:
+        r, g, b = color_dict[chosen_color]
+    except:
+        raise ValueError(
+            f'chosen color: {chosen_color} is not in the color library, please choose from:\n(white, black, red, pink, orange, yellow, blue, cyan, green, purple)'
+        )
+    coords_colors[:, 3] = r
+    coords_colors[:, 4] = g
+    coords_colors[:, 5] = b
+    return coords_colors
