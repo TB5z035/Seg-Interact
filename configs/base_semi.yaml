@@ -1,8 +1,8 @@
 world_size: 1
 save_epoch_freq: 5
 val_epoch_freq: 1
-labeling_inference_epoch: 5
-update_points_num: 0
+labeling_inference_epoch: 10
+update_points_num: 100
 
 model: 
   name: MinkUNet34C
@@ -14,7 +14,7 @@ train_dataset:
   args:
     root: /hdd1/Guest/tb5zhh/datasets/ScanNet
     split: train
-    limit: 100
+    limit: 20
     transform:
       - elastic_distortion:
           distortion_params: 
@@ -76,11 +76,15 @@ scheduler:
     step_size: 20
     gamma: 0.5
 
+metrics:
+  - mIoU
+  - IoU
+
 epochs: 200
-train_batch_size: 4
-train_num_workers: 2
-val_batch_size: 2
-val_num_workers: 1
+train_batch_size: 6
+train_num_workers: 3
+val_batch_size: 4
+val_num_workers: 2
 seed: 0
 inference_count_path: '/home/Guest/caiz/labeling_inference/inference_count_1.npy'
 inference_save_path: '/home/Guest/caiz/labeling_inference/run1'
