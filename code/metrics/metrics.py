@@ -16,7 +16,7 @@ class BaseMetric:
 
 
 # Maybe base class is wrong
-@register_metric
+@register_metric('IoU')
 class IoU(BaseMetric):
     NAME = 'IoU'
 
@@ -52,8 +52,8 @@ class IoU(BaseMetric):
                 writer.add_scalar(f'{name_prefix}{self.NAME}/{self.class_names[idx]}', iou, global_iter)
 
 
-@register_metric
-class mIoU(BaseMetric):
+@register_metric('mIoU')
+class mIoU(IoU):
     NAME = 'mIoU'
 
     def calc(self):
