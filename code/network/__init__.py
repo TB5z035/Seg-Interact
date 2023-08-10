@@ -11,4 +11,4 @@ def register_network(network_name):
 
 
 from . import minkunet
-from . import lightvit
+# from . import lightvit
