@@ -59,7 +59,7 @@ def get_args():
     parser.add_argument("--inference_save_path", type=str, default='/home/Guest/caiz/labeling_inference/run1')
 
     # Visualization
-    parser.add_argument("--visualize", default=False, action='store_true', help='whether to visualize point cloud')
+    parser.add_argument("--visualize", type=str, default='', help='whether or how to visualize point cloud')
     parser.add_argument("--vis_save_path",
                         type=str,
                         default='/home/Guest/caiz/labeling_inference/visualize/scannet_scenes')
