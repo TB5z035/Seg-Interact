@@ -38,5 +38,5 @@ def vis_preprocess(dataset_path: str, save_path: str):
 
 if __name__ == '__main__':
     dataset_path = '/home/Guest/tb5zhh/datasets/ScanNet'
-    save_path = '/home/Guest/caiz/labeling_inference/visualize/scannet_scenes2'
+    save_path = '/home/Guest/caiz/labeling_inference/visualize/scannet_scenes1'
     vis_preprocess(dataset_path, save_path)
