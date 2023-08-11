@@ -62,7 +62,7 @@ def get_args():
     parser.add_argument("--visualize", type=list, default=None, help='whether or how to visualize point cloud')
     parser.add_argument("--vis_save_path",
                         type=str,
-                        default='/home/Guest/caiz/labeling_inference/visualize/scannet_scenes')
+                        default='/home/Guest/caiz/labeling_inference/visualize/scannet_scenes1')
 
     # Do we have a config file to parse?
     config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)

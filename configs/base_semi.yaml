@@ -80,11 +80,16 @@ metrics:
   - mIoU
   - IoU
 
-epochs: 200
+vis_save_path: /home/Guest/caiz/labeling_inference/visualize/scannet_scenes1
+visualize: 
+  - highlight_updated
+  - color_by_preds
+
+epochs: 20
 train_batch_size: 6
 train_num_workers: 3
 val_batch_size: 4
 val_num_workers: 2
 seed: 0
-inference_count_path: '/home/Guest/caiz/labeling_inference/inference_count_1.npy'
-inference_save_path: '/home/Guest/caiz/labeling_inference/run1'
+inference_count_path: /home/Guest/caiz/labeling_inference/inference_count_2.npy
+inference_save_path: /home/Guest/caiz/labeling_inference/run2

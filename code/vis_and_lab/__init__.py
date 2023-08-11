@@ -15,7 +15,7 @@ def register_vis_type(type_name):
     return decorator
 
 
-def npy_to_txt(data_path: str, save_path: str):
+def vis_npy_to_txt(data_path: str, save_path: str):
     assert osp.exists(data_path), 'data path does not exist'
     assert osp.exists(save_path), f'save path {save_path} does not exist'
     scenes = sorted(os.listdir(data_path))
@@ -35,7 +35,7 @@ def prep_files_for_visuaization(dataset: object, inference_save_path: str, point
     for type_name in vis_type:
         v = VIS_TYPE[type_name](dataset, inference_save_path, point_cloud_path)
         v()
-    npy_to_txt(point_cloud_path, point_cloud_path)
+    vis_npy_to_txt(point_cloud_path, point_cloud_path)
 
 
 from . import visualization
