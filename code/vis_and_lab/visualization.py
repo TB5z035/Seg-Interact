@@ -1,9 +1,12 @@
 import os
 import os.path as osp
 import numpy as np
+import logging
 from tqdm import tqdm
 
 from . import register_vis_type
+
+logger = logging.getLogger('Visualization')
 
 
 def clean_txt_files(point_cloud_path: str):
@@ -69,6 +72,7 @@ class vis_base():
 class highlight_updated(vis_base):
 
     def __call__(self):
+        logger.info("Visualizing with highlight_updated")
         clean_txt_files(self.point_cloud_path)
         scenes = sorted(os.listdir(self.point_cloud_path))
         color_sequence = ('white', 'red', 'pink', 'orange', 'yellow', 'blue', 'cyan', 'green')
@@ -95,6 +99,7 @@ class highlight_updated(vis_base):
 class color_by_segment(vis_base):
 
     def __call__(self):
+        logger.info("Visualizing with color_by_segment")
         clean_txt_files(self.point_cloud_path)
         scenes = sorted(os.listdir(self.inference_save_path))
         for scene in tqdm(scenes):
@@ -120,6 +125,7 @@ class color_by_segment(vis_base):
 class color_by_preds(vis_base):
 
     def __call__(self):
+        logger.info("Visualizing with color_by_preds")
         clean_txt_files(self.point_cloud_path)
         scenes = sorted(os.listdir(self.inference_save_path))
         for scene in tqdm(scenes):

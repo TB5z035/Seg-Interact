@@ -59,7 +59,7 @@ def get_args():
     parser.add_argument("--inference_save_path", type=str, default='/home/Guest/caiz/labeling_inference/run1')
 
     # Visualization
-    parser.add_argument("--visualize", type=str, default='', help='whether or how to visualize point cloud')
+    parser.add_argument("--visualize", type=list, default=None, help='whether or how to visualize point cloud')
     parser.add_argument("--vis_save_path",
                         type=str,
                         default='/home/Guest/caiz/labeling_inference/visualize/scannet_scenes')
@@ -83,6 +83,8 @@ def get_args():
     args.start_time = get_time_str()
     if args.labeling_inference:
         assert args.inference_count_path is not None, 'inference count path not specified'
+    if args.visualize:
+        assert args.labeling_inference, 'labeling inference must be performed in order to use visualization functions'
     if args.resume:
         resume_path = args.resume
         import torch

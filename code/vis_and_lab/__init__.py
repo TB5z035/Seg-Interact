@@ -31,9 +31,10 @@ def npy_to_txt(data_path: str, save_path: str):
             np.savetxt(osp.join(save_path, scene, file_name), scene_data)
 
 
-def prep_files_for_visuaization(dataset: object, inference_save_path: str, point_cloud_path: str, vis_type: str):
-    v = VIS_TYPE[vis_type](dataset, inference_save_path, point_cloud_path)
-    v()
+def prep_files_for_visuaization(dataset: object, inference_save_path: str, point_cloud_path: str, vis_type: list):
+    for type_name in vis_type:
+        v = VIS_TYPE[type_name](dataset, inference_save_path, point_cloud_path)
+        v()
     npy_to_txt(point_cloud_path, point_cloud_path)
 
 

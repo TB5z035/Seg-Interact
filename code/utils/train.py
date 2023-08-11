@@ -141,7 +141,7 @@ def train(local_rank=0, world_size=1, args=None):
 
     for epoch_idx in range(start_epoch, args.epochs):
         # Train
-        train_one_epoch(network,
+        '''train_one_epoch(network,
                         optimizer,
                         train_dataloader,
                         criterion,
@@ -158,7 +158,7 @@ def train(local_rank=0, world_size=1, args=None):
                      criterion,
                      metrics=[METRICS[metric] for metric in args.metrics],
                      global_iter=global_iter[0],
-                     writer=writer)
+                     writer=writer)'''
         # if epoch_idx % args.save_epoch_freq == 0:
         #     save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
         # Labeling Inference
