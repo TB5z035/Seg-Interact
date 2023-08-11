@@ -84,15 +84,16 @@ class highlight_updated(vis_base):
                 i for i in os.listdir(osp.join(self.point_cloud_path, scene))
                 if not (i.endswith('_updated_indices.npy') or i.endswith('_coords_colors.npy')) and i.endswith('.npy')
             ])
-            all_coords_colors = np.zeros((1, 7))
-            for file in color_files:
-                file_color = color_sequence[color_files.index(file) % len(color_sequence)]
-                coords_colors = np.load(osp.join(self.point_cloud_path, scene, file))
-                coords_colors = set_color(coords_colors, file_color)
-                all_coords_colors = np.concatenate((all_coords_colors, coords_colors), axis=0)
-            np.save(osp.join(self.point_cloud_path, scene, f'{scene}_highlight_updated_coords_colors.npy'),
-                    all_coords_colors[1:],
-                    allow_pickle=True)
+            if len(color_files) != 0:
+                all_coords_colors = np.zeros((1, 7))
+                for file in color_files:
+                    file_color = color_sequence[color_files.index(file) % len(color_sequence)]
+                    coords_colors = np.load(osp.join(self.point_cloud_path, scene, file))
+                    coords_colors = set_color(coords_colors, file_color)
+                    all_coords_colors = np.concatenate((all_coords_colors, coords_colors), axis=0)
+                np.save(osp.join(self.point_cloud_path, scene, f'{scene}_highlight_updated_coords_colors.npy'),
+                        all_coords_colors[1:],
+                        allow_pickle=True)
 
 
 @register_vis_type('color_by_segment')
