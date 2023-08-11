@@ -1,6 +1,7 @@
 import os
 import os.path as osp
 import numpy as np
+from tqdm import tqdm
 
 
 def save_vis_file(dataset_path: str, scene_id: str, save_path: str):
@@ -31,7 +32,7 @@ def save_vis_file(dataset_path: str, scene_id: str, save_path: str):
 
 def vis_preprocess(dataset_path: str, save_path: str):
     scenes = sorted(os.listdir(osp.join(dataset_path, 'scans')))
-    for scene in scenes:
+    for scene in tqdm(scenes):
         save_vis_file(dataset_path, scene, save_path)
 
 

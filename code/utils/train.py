@@ -15,7 +15,7 @@ from ..dataset import DATASETS
 from ..metrics import METRICS
 from ..network import NETWORKS
 from ..vis_and_lab.point_selection import highest_loss_filtering
-from ..vis_and_lab.visualization import prep_files_for_visuaization
+from ..vis_and_lab import prep_files_for_visuaization
 
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
@@ -174,7 +174,8 @@ def train(local_rank=0, world_size=1, args=None):
         if epoch_idx != 0 and epoch_idx % 20 == 0:
             torch.cuda.empty_cache()
     if args.visualize:
-        prep_files_for_visuaization(args.vis_save_path)
+        label_update(args, network, inf_dataloader, point_criterion, 'final')
+        prep_files_for_visuaization(inf_dataset, args.inference_save_path, args.vis_save_path, args.visualize)
     # save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
 
