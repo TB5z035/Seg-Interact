@@ -134,14 +134,13 @@ def train(local_rank=0, world_size=1, args=None):
     if args.labeling_inference:
         inference_count = get_n_update_count(args.inference_count_path, reset=args.inference_count_reset)
         clean_inference_paths(args.inference_save_path)
-
         # Visualization Init
         if args.visualize:
             clean_vis_paths(args.vis_save_path)
 
     for epoch_idx in range(start_epoch, args.epochs):
         # Train
-        '''train_one_epoch(network,
+        train_one_epoch(network,
                         optimizer,
                         train_dataloader,
                         criterion,
@@ -158,9 +157,9 @@ def train(local_rank=0, world_size=1, args=None):
                      criterion,
                      metrics=[METRICS[metric] for metric in args.metrics],
                      global_iter=global_iter[0],
-                     writer=writer)'''
-        # if epoch_idx % args.save_epoch_freq == 0:
-        #     save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
+                     writer=writer)
+        if epoch_idx % args.save_epoch_freq == 0:
+            save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
         # Labeling Inference
         if args.labeling_inference and epoch_idx % args.labeling_inference_epoch == 0:
             label_update(args, network, inf_dataloader, point_criterion, inference_count)
@@ -176,7 +175,7 @@ def train(local_rank=0, world_size=1, args=None):
     if args.visualize:
         label_update(args, network, inf_dataloader, point_criterion, 'final')
         prep_files_for_visuaization(inf_dataset, args.inference_save_path, args.vis_save_path, args.visualize)
-    # save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
+    save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
 
 def train_one_epoch(model,
