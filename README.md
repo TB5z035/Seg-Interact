@@ -65,7 +65,7 @@ After executing the command above, if active learning is specified, the followin
 TODO
 
 ## Visualizing
-All visualization functionalities are stored under the [vis_and_lab](vis_and_lab) folder and configured with the [base_semi.yaml](base_semi.yaml) file.
+All visualization functionalities are stored under the [vis_and_lab](vis_and_lab) folder and configured with the [base_semi.yaml](base_semi.yaml) file. Before any executions, [visualize_scannet_preprocess.py](visualize_scannet_preprocess.py) needs to be run. This creates the necessary scene folders and respective base coordinate and color files within each scene at "vis_save_path".
 
 ### Point Cloud
 Note that currently labeling inference must be performed to visualize point clouds. After completing the entire cycle of training, validating, and inferencing, 
