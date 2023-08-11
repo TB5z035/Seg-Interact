@@ -69,7 +69,7 @@ All visualization functionalities are stored under the [vis_and_lab](vis_and_lab
 
 ### Point Cloud
 Note that currently labeling inference must be performed to visualize point clouds. After completing the entire cycle of training, validating, and inferencing, 
-.txt files will be generated under the specified "vis_save_path" directory. These files should be used in Meshlab for visualization.
+".txt" files will be generated under the specified "vis_save_path" directory. These files should be used in "Meshlab" for visualization.
 
 ```yaml
 vis_save_path: /home/Guest/caiz/labeling_inference/visualize/scannet_scenes              # Path to the saved files
