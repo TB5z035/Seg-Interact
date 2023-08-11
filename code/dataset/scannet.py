@@ -298,6 +298,23 @@ class ScannetDataset(Dataset):
                 train_labels[train_ids == l.train_id] = l.id
         return train_labels
 
+    def find_match_color(self, labels=None):
+        """
+        finds the corresponding segmentation color
+        for a specific label (id)
+
+        labels: numpy.ndarray (N,) uint16 or None
+
+        Return:
+            colors: (N,4) uint16 #rgba
+        """
+        if labels is None:
+            return None
+        colors = np.zeros((len(labels), 4), dtype=int)
+        for l in self.LABEL_PROTOCOL:
+            colors[labels == l.id, :] = l.color[0], l.color[1], l.color[2], 255
+        return colors
+
     def _prepare_item(self, index):
         """
         Get a scene from the dataset
