@@ -65,11 +65,11 @@ After executing the command above, if active learning is specified, the followin
 TODO
 
 ## Visualizing
-All visualization functionalities are stored under the [vis_and_lab](vis_and_lab) folder and configured with the [base_semi.yaml](base_semi.yaml) file.
+All visualization functionalities are stored under the [vis_and_lab](vis_and_lab) folder and configured with the [base_semi.yaml](base_semi.yaml) file. Before any executions, [visualize_scannet_preprocess.py](visualize_scannet_preprocess.py) needs to be run. This creates the necessary scene folders and respective base coordinate and color files within each scene at "vis_save_path".
 
 ### Point Cloud
 Note that currently labeling inference must be performed to visualize point clouds. After completing the entire cycle of training, validating, and inferencing, 
-.txt files will be generated under the specified "vis_save_path" directory. These files should be used in Meshlab for visualization.
+".txt" files will be generated under the specified "vis_save_path" directory. These files should be used in "Meshlab" for visualization.
 
 ```yaml
 vis_save_path: /home/Guest/caiz/labeling_inference/visualize/scannet_scenes              # Path to the saved files
@@ -85,14 +85,14 @@ There are 3 types of visualizations:
   - [scene_name]_highlight_updated_coords_colors.txt
 <img width="625" alt="image" src="https://github.com/TB5z035/Seg-Interact/assets/98086762/448a4d30-72e1-431d-8791-2a6ac0ffd421">
 
-- color_by_segment: points are colored based on their predicted label and the corresponding RGB value specified in "LABEL_PROTOCAL" ([scannet.py](scannet.py))
-  - [scene_name]__pred_seg_coords_colors.txt
-  - [scene_name]__gt_seg_coords_colors.txt
+- color_by_segment: points are colored based on their predicted or ground truth label and the corresponding RGB value specified in "LABEL_PROTOCAL" ([scannet.py](scannet.py))
+  - [scene_name]_pred_seg_coords_colors.txt
+  - [scene_name]_gt_seg_coords_colors.txt
 <img width="634" alt="image" src="https://github.com/TB5z035/Seg-Interact/assets/98086762/299ba9b8-4e73-4bb3-bd51-66c952f4ce4b">
 
 - color_by_preds: points that are incorrectly labeled will be highlighted (default: white) whereas correctly labeled point will keep their true colors
-  - [scene_name]__correct_coords_colors.txt
-  - [scene_name]__error_coords_colors.txt
+  - [scene_name]_correct_coords_colors.txt
+  - [scene_name]_error_coords_colors.txt
 <img width="647" alt="image" src="https://github.com/TB5z035/Seg-Interact/assets/98086762/99a97611-fd7f-49f6-a904-33505b7c1f8f">
 
 ### Image
