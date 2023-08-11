@@ -85,7 +85,7 @@ There are 3 types of visualizations:
   - [scene_name]_highlight_updated_coords_colors.txt
 <img width="625" alt="image" src="https://github.com/TB5z035/Seg-Interact/assets/98086762/448a4d30-72e1-431d-8791-2a6ac0ffd421">
 
-- color_by_segment: points are colored based on their predicted label and the corresponding RGB value specified in "LABEL_PROTOCAL" ([scannet.py](scannet.py))
+- color_by_segment: points are colored based on their predicted or ground truth label and the corresponding RGB value specified in "LABEL_PROTOCAL" ([scannet.py](scannet.py))
   - [scene_name]_pred_seg_coords_colors.txt
   - [scene_name]_gt_seg_coords_colors.txt
 <img width="634" alt="image" src="https://github.com/TB5z035/Seg-Interact/assets/98086762/299ba9b8-4e73-4bb3-bd51-66c952f4ce4b">
