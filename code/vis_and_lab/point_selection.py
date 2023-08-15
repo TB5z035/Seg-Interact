@@ -68,5 +68,5 @@ def highest_loss_filtering(args, inf_save_path: str, epoch: int, visualize: bool
                     np.save(osp.join(vis_scene_path, f'{scene}_updated_indices.npy'),
                             filtered_point_indices,
                             allow_pickle=True)
-                    
+
             # del scene_losses, prev_updated_labels, scene_predictions, scene_gt_labels, scene_data

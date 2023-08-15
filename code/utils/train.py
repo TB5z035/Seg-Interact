@@ -163,7 +163,7 @@ def train(local_rank=0, world_size=1, args=None):
             #torch.cuda.empty_cache()
 
         #if epoch_idx % args.save_epoch_freq == 0:
-            #save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
+        #save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
 
         # Labeling Inference
         if args.labeling_inference and epoch_idx % args.labeling_inference_epoch == 0:
@@ -179,8 +179,8 @@ def train(local_rank=0, world_size=1, args=None):
         #     print(torch.cuda.memory_summary())
         #     torch.cuda.empty_cache()
         #     print(torch.cuda.memory_summary())
-    
-    # Visualize        
+
+    # Visualize
     if args.visualize:
         label_update(args, network, inf_dataloader, point_criterion, 'final')
         prep_files_for_visuaization(inf_dataset, args.inference_save_path, args.vis_save_path, args.visualize)
