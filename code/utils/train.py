@@ -71,10 +71,12 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         train_sampler = None
 
+    # (train_sampler is None)
+
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.train_batch_size,
-        shuffle=(train_sampler is None),
+        shuffle=False,
         num_workers=args.train_num_workers,
         sampler=train_sampler,
         collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)
@@ -158,8 +160,11 @@ def train(local_rank=0, world_size=1, args=None):
                      metrics=[METRICS[metric] for metric in args.metrics],
                      global_iter=global_iter[0],
                      writer=writer)
-        if epoch_idx % args.save_epoch_freq == 0:
-            save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
+            #torch.cuda.empty_cache()
+
+        #if epoch_idx % args.save_epoch_freq == 0:
+            #save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
+
         # Labeling Inference
         if args.labeling_inference and epoch_idx % args.labeling_inference_epoch == 0:
             label_update(args, network, inf_dataloader, point_criterion, inference_count)
@@ -170,12 +175,16 @@ def train(local_rank=0, world_size=1, args=None):
                                    vis_path=args.vis_save_path)
             inference_count = get_n_update_count(args.inference_count_path, reset=False)
             clean_prev_inf_paths(args.inference_save_path)
-        if epoch_idx != 0 and epoch_idx % 20 == 0:
-            torch.cuda.empty_cache()
+        # if epoch_idx != 0 and epoch_idx % 5 == 0:
+        #     print(torch.cuda.memory_summary())
+        #     torch.cuda.empty_cache()
+        #     print(torch.cuda.memory_summary())
+    
+    # Visualize        
     if args.visualize:
         label_update(args, network, inf_dataloader, point_criterion, 'final')
         prep_files_for_visuaization(inf_dataset, args.inference_save_path, args.vis_save_path, args.visualize)
-    save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
+    #save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
 
 def train_one_epoch(model,
@@ -208,6 +217,9 @@ def train_one_epoch(model,
         iter_idx[0] += 1
     if scheduler is not None:
         scheduler.step()
+
+    #del loss
+    #del output
 
 
 if __name__ == '__main__':

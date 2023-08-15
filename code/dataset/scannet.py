@@ -248,13 +248,13 @@ class ScannetDataset(Dataset):
         coords, colors, faces, labels = read_plyfile(data_path, label_path)
         return coords, colors, faces, self._convert_labels(labels)
 
-    def _load_ply_inference(self, scene_path, original_scene_path):
+    def _load_ply_inference(self, new_scene_path, scene_path):
         if not osp.exists(scene_path):
             os.makedirs(scene_path, exist_ok=True)
-        inference_scene_files = [i for i in os.listdir(scene_path)]
-        original_scene_files = [i for i in os.listdir(original_scene_path)]
+        inference_scene_files = [i for i in os.listdir(new_scene_path)]
+        original_scene_files = [i for i in os.listdir(scene_path)]
 
-        coords, colors, faces, labels = self._load_ply(original_scene_path)
+        coords, colors, faces, labels = self._load_ply(scene_path)
         if len(inference_scene_files) != 0:
             original_scene_file = [i for i in original_scene_files if i.endswith('_scene.npy')]
             scene_id = re.findall(r'(.*)_scene.npy', original_scene_file[0])[0]
@@ -262,7 +262,7 @@ class ScannetDataset(Dataset):
             updated_label_nums = list(
                 map(int, np.concatenate([re.findall(r'[-+]?\d+', f[0]) for f in updated_label_files if f != []])))
             iter_num = np.max(updated_label_nums)
-            labels = np.load(osp.join(scene_path, f'{scene_id}_updated_labels_iter_{iter_num}.npy'))
+            labels = np.load(osp.join(new_scene_path, f'{scene_id}_updated_labels_iter_{iter_num}.npy'))
         return coords, colors, faces, self._convert_labels(labels)
 
     def _convert_labels(self, labels=None):
@@ -437,12 +437,12 @@ class ScanNetQuantizedLimited(ScanNetQuantized):
         return (bcoords, bfaces, bfeats), blabels, {'maps': (bmap, binv_map), 'scene_ids': scene_ids}
 
     def _prepare_item(self, index):
-        original_scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
+        scene_path = osp.join(self.root, self.SPLIT_PATHS[self.split], self.scene_ids[index])
         if self.labeling_inference:
-            scene_path = osp.join(self.inf_save_path, self.scene_ids[index])
-            coords, colors, faces, labels = self._load_ply_inference(scene_path, original_scene_path)
+            new_scene_path = osp.join(self.inf_save_path, self.scene_ids[index])
+            coords, colors, faces, labels = self._load_ply_inference(new_scene_path, scene_path)
         else:
-            coords, colors, faces, labels = self._load_ply(original_scene_path)
+            coords, colors, faces, labels = self._load_ply(scene_path)
 
         scene_id = self.scene_ids[index]
         limit = self.limit_dict[scene_id]

@@ -2,7 +2,7 @@ world_size: 1
 save_epoch_freq: 5
 val_epoch_freq: 1
 labeling_inference_epoch: 10
-update_points_num: 100
+update_points_num: 0
 
 model: 
   name: MinkUNet34C
@@ -80,12 +80,13 @@ metrics:
   - mIoU
   - IoU
 
-vis_save_path: /home/Guest/caiz/labeling_inference/visualize/scannet_scenes1
-visualize: 
-  - highlight_updated
-  - color_by_preds
+vis_save_path: /home/Guest/caiz/labeling_inference/visualize/scannet_scenes2
+# visualize: 
+#   - highlight_updated
+#   - color_by_preds
+#   - color_by_segment
 
-epochs: 20
+epochs: 200
 train_batch_size: 6
 train_num_workers: 3
 val_batch_size: 4

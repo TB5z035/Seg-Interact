@@ -136,7 +136,7 @@ class color_by_preds(vis_base):
                                              allow_pickle=True)
             datapoints = np.load(osp.join(self.point_cloud_path, scene, f'{scene}_base_coords_colors.npy'),
                                  allow_pickle=True)
-            error_indices = np.where(pred_labels != gt_labels)
+            error_indices = np.where((pred_labels != gt_labels) and (gt_labels != 0))
             error_preds = datapoints[error_indices]
             error_pred_coords_colors = set_color(error_preds, 'white')
             correct_pred_coords_colors = np.delete(datapoints, error_indices, axis=0)

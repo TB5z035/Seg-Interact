@@ -83,6 +83,7 @@ def get_args():
     args.start_time = get_time_str()
     if args.labeling_inference:
         assert args.inference_count_path is not None, 'inference count path not specified'
+        assert args.update_points_num != 0, 'update points num = 0, not point in performing labeling inference'
     if args.visualize:
         assert args.labeling_inference, 'labeling inference must be performed in order to use visualization functions'
     if args.resume:
