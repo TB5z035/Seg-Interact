@@ -1,5 +1,6 @@
 import random
 import logging
+import os.path as osp
 
 # import MinkowskiEngine as ME
 import numpy as np
@@ -8,18 +9,19 @@ from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import tensorboardX
-import numpy as np
 
 from ..dataset import DATASETS
 # from .metrics import IoU, mIoU, Acc, MATRICS
 from ..metrics import METRICS
 from ..network import NETWORKS
+from ..vis_and_lab.point_selection import highest_loss_filtering
+from ..vis_and_lab import prep_files_for_visuaization
 
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
-from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, get_time_str, save_checkpoint, clear_paths
+from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, save_checkpoint, clean_inference_paths, clean_prev_inf_paths, clean_vis_paths
 from .validate import validate
-from .psuedo_update import label_update
+from .pseudo_update import label_update, get_n_update_count
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -49,12 +51,17 @@ def train(local_rank=0, world_size=1, args=None):
     writer = init_logger(args)
 
     # Dataset
-    train_dataset = DATASETS[args.train_dataset['name']](**args.train_dataset['args'])
-
+    train_dataset = DATASETS[args.train_dataset['name']](**(args.train_dataset['args'] | {
+        'labeling_inference': args.labeling_inference,
+        'inference_save_path': args.inference_save_path
+    }))
     val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
+    inf_dataset = DATASETS[args.inf_dataset['name']](**args.inf_dataset['args'])
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
-    logger.info(f"Train dataset: {args.train_dataset}, Val dataset: {args.val_dataset}")
+    logger.info(
+        f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}\nInf dataset: {args.inf_dataset}")
+
     # DataLoader
     if world_size > 1:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
@@ -64,10 +71,12 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         train_sampler = None
 
+    # (train_sampler is None)
+
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.train_batch_size,
-        shuffle=(train_sampler is None),
+        shuffle=False,
         num_workers=args.train_num_workers,
         sampler=train_sampler,
         collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)
@@ -75,21 +84,27 @@ def train(local_rank=0, world_size=1, args=None):
                                 batch_size=args.val_batch_size,
                                 shuffle=False,
                                 num_workers=args.val_num_workers,
-                                collate_fn=val_dataset._collate_fn if hasattr(val_dataset, '_collate_fn') else None)
-    logger.info(f"Train dataloader: {len(train_dataloader)}, Val dataloader: {len(val_dataloader)}")
+                                collate_fn=val_dataset._collate_fn)
+    inf_dataloader = DataLoader(inf_dataset,
+                                batch_size=args.val_batch_size,
+                                shuffle=False,
+                                num_workers=args.val_num_workers,
+                                collate_fn=inf_dataset._collate_fn)
+    logger.info(
+        f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}\nInf dataloader: {len(inf_dataloader)}"
+    )
 
     # Model
-    network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes,
-                                           **args.model['args'])
+    network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes)
     network = network.to(device)
     # Load pretrained model
     if args.resume:
         logger.info(f"Resume training from {args.resume}")
         ckpt = torch.load(args.resume, map_location=device)
         network.load_state_dict(ckpt['network'])
-    elif args.pretrained:
+    elif args.model['args']['pretrained']:
         logger.info(f"Load pretrained model from {args.pretrained}")
-        ckpt = torch.load(args.pretrained, map_location=device)
+        ckpt = torch.load(args.model['args']['pretrained'], map_location=device)
         network.load_state_dict(ckpt['network'])
         pass
     network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
@@ -117,12 +132,13 @@ def train(local_rank=0, world_size=1, args=None):
         global_iter = [0]
         start_epoch = 0
 
-    # Pseudo Label Update
-    inference_iter = 0
+    # Labeling Inference Init
     if args.labeling_inference:
-        label_update(args, network, train_dataloader, point_criterion, inference_iter)
-        # inference_iter += 1
-        return
+        inference_count = get_n_update_count(args.inference_count_path, reset=args.inference_count_reset)
+        clean_inference_paths(args.inference_save_path)
+        # Visualization Init
+        if args.visualize:
+            clean_vis_paths(args.vis_save_path)
 
     for epoch_idx in range(start_epoch, args.epochs):
         # Train
@@ -135,6 +151,7 @@ def train(local_rank=0, world_size=1, args=None):
                         scheduler=scheduler,
                         val_loader=val_dataloader,
                         writer=writer)
+
         # Validate
         if epoch_idx % args.val_epoch_freq == 0:
             validate(network,
@@ -143,9 +160,31 @@ def train(local_rank=0, world_size=1, args=None):
                      metrics=[METRICS[metric] for metric in args.metrics],
                      global_iter=global_iter[0],
                      writer=writer)
-        if epoch_idx % args.save_epoch_freq == 0:
-            save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
-    save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
+            #torch.cuda.empty_cache()
+
+        #if epoch_idx % args.save_epoch_freq == 0:
+        #save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
+
+        # Labeling Inference
+        if args.labeling_inference and epoch_idx % args.labeling_inference_epoch == 0:
+            label_update(args, network, inf_dataloader, point_criterion, inference_count)
+            highest_loss_filtering(args,
+                                   args.inference_save_path,
+                                   inference_count,
+                                   visualize=args.visualize,
+                                   vis_path=args.vis_save_path)
+            inference_count = get_n_update_count(args.inference_count_path, reset=False)
+            clean_prev_inf_paths(args.inference_save_path)
+        # if epoch_idx != 0 and epoch_idx % 5 == 0:
+        #     print(torch.cuda.memory_summary())
+        #     torch.cuda.empty_cache()
+        #     print(torch.cuda.memory_summary())
+
+    # Visualize
+    if args.visualize:
+        label_update(args, network, inf_dataloader, point_criterion, 'final')
+        prep_files_for_visuaization(inf_dataset, args.inference_save_path, args.vis_save_path, args.visualize)
+    #save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
 
 def train_one_epoch(model,
@@ -178,6 +217,9 @@ def train_one_epoch(model,
         iter_idx[0] += 1
     if scheduler is not None:
         scheduler.step()
+
+    #del loss
+    #del output
 
 
 if __name__ == '__main__':

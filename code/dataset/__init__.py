@@ -11,4 +11,4 @@ def register_dataset(dataset_name):
 
 
 from . import scannet
-from . import multiview_classification
+# from . import multiview_classification

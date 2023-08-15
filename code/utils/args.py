@@ -41,10 +41,28 @@ def get_args():
                         default=4,
                         help="Number of workers for the validation loader [default: 4]")
 
+    # Inference
     parser.add_argument("--labeling_inference",
-                        type=bool,
                         default=False,
-                        help='whether to update/generate and save pseudo labels')
+                        action='store_true',
+                        help='whether to perform labeling update inference')
+    parser.add_argument("--inference_count_reset",
+                        default=False,
+                        action='store_true',
+                        help='whether to reset inference count')
+    parser.add_argument("--inference_count_path", type=str, default='', help='path to inference count file')
+    parser.add_argument("--update_points_num",
+                        type=int,
+                        default=200,
+                        help='number of points to update after each inference')
+    parser.add_argument("--labeling_inference_epoch", type=int, default=5)
+    parser.add_argument("--inference_save_path", type=str, default='/home/Guest/caiz/labeling_inference/run1')
+
+    # Visualization
+    parser.add_argument("--visualize", type=list, default=None, help='whether or how to visualize point cloud')
+    parser.add_argument("--vis_save_path",
+                        type=str,
+                        default='/home/Guest/caiz/labeling_inference/visualize/scannet_scenes1')
 
     # Do we have a config file to parse?
     config_parser = argparse.ArgumentParser(description='Training Config', add_help=False)
@@ -63,6 +81,11 @@ def get_args():
     args = parser.parse_args(remaining)
     args.exp_dir = osp.join('experiments', osp.relpath(args_config.config, 'configs')[:-5])
     args.start_time = get_time_str()
+    if args.labeling_inference:
+        assert args.inference_count_path is not None, 'inference count path not specified'
+        assert args.update_points_num != 0, 'update points num = 0, not point in performing labeling inference'
+    if args.visualize:
+        assert args.labeling_inference, 'labeling inference must be performed in order to use visualization functions'
     if args.resume:
         resume_path = args.resume
         import torch
