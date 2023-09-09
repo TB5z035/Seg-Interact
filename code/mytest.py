@@ -3,19 +3,26 @@ import os
 import os.path as osp
 import re
 import torch
-'''
-x = np.array([[1, 2, 3], [4, 5, 6]])
-y = np.divide(x[:, 2], 2)
-y = np.expand_dims(y, axis=1)
-print(x[:, :2])
-print(y)
-x = np.concatenate((x[:, :2], y), axis=1)
-print(x)
-'''
-x = np.array([[1, 2, 3], [4, 5, 6]])
-y = x[:, 1:]
-print(y)
-y[:, 0] = 0
-print(y)
+from itertools import repeat
+import argparse
+import os.path as osp
+import yaml
 
-print(9 % 8)
+class a():
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def method(self):
+        print(1)
+
+class b(a):
+    def __init__(self):
+        pass
+
+    def method2(self):
+        print(2)
+        super().__init__(3,4)
+
+
+this = b()
+this.method2()
