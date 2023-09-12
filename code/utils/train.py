@@ -61,7 +61,7 @@ def train(local_rank=0, world_size=1, args=None):
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
     logger.info(
         f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}\nInf dataset: {args.inf_dataset}")
-
+        
     # DataLoader
     if world_size > 1:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
@@ -71,12 +71,10 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         train_sampler = None
 
-    # (train_sampler is None)
-
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.train_batch_size,
-        shuffle=False,
+        shuffle=(train_sampler is None),
         num_workers=args.train_num_workers,
         sampler=train_sampler,
         collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)

@@ -12,8 +12,12 @@ from torch.utils.data import Dataset
 
 from .transforms import TRANSFORMS, Compose, parse_transform
 from . import register_dataset
-
+from .superpoint_base import SuperpointBase
+from .scannet_config import *
 from ..utils.misc import seq_2_ordered_set
+from ..data import Data, Batch, NAG
+from ..sp_utils import available_cpu_count, starmap_with_kwargs, \
+    rodrigues_rotation_matrix, to_float_rgb
 
 is_valid_scene_id = re.compile(r'^scene\d{4}_\d{2}$').match
 logger = logging.getLogger('scannet')
@@ -501,3 +505,174 @@ class ScanNetQuantizedFast(ScanNetQuantized, FastLoad):
 @register_dataset('scannet_quantized_limited_fast')
 class ScanNetQuantizedLimitedFast(ScanNetQuantizedLimited, FastLoad):
     pass
+
+
+@register_dataset('sp_scannet')
+class sp_scannet(FastLoad, SuperpointBase):
+
+    def __init__(self, *args, **kwargs):
+        SuperpointBase.__init__(self, stage='scans', *args, **kwargs)
+
+    @property
+    def dataset_name(self):
+        return DATASET_NAME
+
+    @property
+    def num_classes(self):
+        """Number of classes in the dataset. May be one-item smaller
+        than `self.class_names`, to account for the last class name
+        being optionally used for 'unlabelled' or 'ignored' classes,
+        indicated as `-1` in the dataset labels.
+        """
+        return ScanNet_NUM_CLASSES
+    
+    @property
+    def class_names(self):
+        """List of string names for dataset classes. This list may be
+        one-item larger than `self.num_classes` if the last label
+        corresponds to 'unlabelled' or 'ignored' indices, indicated as
+        `-1` in the dataset labels.
+        """
+        return CLASS_NAMES
+
+    @property
+    def raw_dir(self) -> str:
+        return osp.join(self.root, self.stage)
+
+    @property
+    def all_base_cloud_ids(self):
+        """Dictionary holding lists of clouds ids, for each
+        stage.
+
+        The following structure is expected:
+            `{'train': [...]}`
+        """
+        scans_paths = [osp.join(self.root, 'scans'), osp.join(self.root, 'scans_test')]
+        all_scans = [os.listdir(p) for p in scans_paths]
+        return {
+            'scans': all_scans[0], 'scans_test': all_scans[1]}
+    
+    def download_dataset(self):
+        """
+        Check for extracted ScanNet dataset's existence.
+        """
+        assert len(os.listdir(osp.join(self.root, 'scans'))) != 0, f'No files in ScanNet at {osp.join(self.root, "scans")}'
+
+    @property
+    def raw_file_structure(self):
+        return f"""
+    {self.root}/
+        └── scans/
+            └── scenexxxx_xx
+            └── ...
+        └── scans_test/
+            └── scenexxxx_xx
+            └── ...
+            """
+
+    @property
+    def raw_file_names(self):
+        """The file paths to find in order to skip the download."""
+        scan_folders = super().raw_file_names
+        return scan_folders
+
+    def id_to_relative_raw_path(self, id):
+        """Given a cloud id as stored in `self.cloud_ids`, return the
+        path (relative to `self.raw_dir`) of the corresponding raw
+        cloud.
+        """
+        return self.id_to_base_id(id)
+    
+    def read_single_raw_cloud(self, raw_cloud_path):
+        """Read a single raw cloud and return a Data object, ready to
+        be passed to `self.pre_transform`.
+        """
+        return self.read_scannet_scene(
+            raw_cloud_path, xyz=True, rgb=True, semantic=True, instance=False,
+            xyz_room=True, align=False, is_val=False, verbose=False)
+    
+    def read_scannet_scene(
+        self, scene_dir, xyz=True, rgb=True, semantic=True, instance=False,
+        xyz_room=False, align=False, is_val=False, verbose=False, processes=-1):
+        """Read all ScanNet scenes
+
+        :param area_dir: str
+            Absolute path to the Area directory, eg: '/some/path/Area_1'
+        :param xyz: bool
+            Whether XYZ coordinates should be saved in the output Data.pos
+        :param rgb: bool
+            Whether RGB colors should be saved in the output Data.rgb
+        :param semantic: bool
+            Whether semantic labels should be saved in the output Data.y
+        :param instance: bool
+            Whether instance labels should be saved in the output Data.y
+        :param xyz_room: bool
+            Whether the canonical room coordinates should be saved in the
+            output Data.pos_room, as defined in the S3DIS paper section 3.2:
+            https://openaccess.thecvf.com/content_cvpr_2016/papers/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf
+        :param align: bool
+            Whether the room should be rotated to its canonical orientation,
+            as defined in the S3DIS paper section 3.2:
+            https://openaccess.thecvf.com/content_cvpr_2016/papers/Armeni_3D_Semantic_Parsing_CVPR_2016_paper.pdf
+        :param is_val: bool
+            Whether the output `Batch.is_val` should carry a boolean label
+            indicating whether they belong to the Area validation split
+        :param verbose: bool
+            Verbosity
+        :param processes: int
+            Number of processes to use when reading rooms. `processes < 1`
+            will use all CPUs available
+        :return:
+            Batch of accumulated points clouds
+        """
+        # Read all rooms in the Area and concatenate point clouds in a Batch
+        assert instance == False, 'does not support instance=True'
+        processes = available_cpu_count() if processes < 1 else processes
+        
+        coords, colors, _, labels = self._load_ply(scene_path=scene_dir)
+        colors = np.delete(colors, 3, axis=1)
+        coords, colors, labels = torch.from_numpy(np.float32(coords)), torch.from_numpy(np.uint8(colors)), torch.from_numpy(np.int64(labels))
+        colors = to_float_rgb(colors)
+        batch = Batch.from_data_list([Data(pos=coords, rgb=colors, y=labels, o=None)])
+
+        # Convert from Batch to Data
+        data_dict = batch.to_dict()
+        del data_dict['batch']
+        del data_dict['ptr']
+        data = Data(**data_dict)
+
+        return data
+    
+    def __len__(self):
+        """Number of clouds in the dataset."""
+        return len(self.cloud_ids)
+    
+    def __getitem__(self, idx):
+        """Load a preprocessed NAG from disk and apply `self.transform`
+        if any. Optionally, one may pass a tuple (idx, bool) where the
+        boolean indicates whether the data should be loaded from disk, if
+        `self.in_memory=True`.
+        """
+        # Prepare from_hdd
+        from_hdd = False
+        if isinstance(idx, tuple):
+            assert len(idx) == 2 and isinstance(idx[1], bool), \
+                "Only supports indexing with `int` or `(int, bool)` where the" \
+                " boolean indicates whether the data should be loaded from " \
+                "disk, when `self.in_memory=True`."
+            idx, from_hdd = idx
+
+        # Get the processed NAG directly from RAM
+        if self.in_memory and not from_hdd:
+            return self.in_memory_data[idx]
+
+        # Read the NAG from HDD
+        nag = NAG.load(
+            self.processed_paths[idx],
+            keys_low=self.point_load_keys,
+            keys=self.segment_load_keys)
+
+        # Apply transforms
+        nag = nag if self.transform is None else self.transform(nag)
+
+        return nag

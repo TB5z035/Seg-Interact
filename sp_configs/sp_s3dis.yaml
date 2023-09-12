@@ -1,0 +1,6 @@
+defaults:
+  - _self_
+  - datamodule: s3dis.yaml
+  - paths: default.yaml
+  - extras: default.yaml
+  - hydra: default.yaml

@@ -1,10 +1,20 @@
 import argparse
 import os.path as osp
-
 import yaml
-
 from .misc import get_time_str
 
+import pyrootutils
+from hydra import initialize, compose
+from hydra.core.global_hydra import GlobalHydra
+
+
+def init_spconfig(config_name: str, overrides=[]):
+    assert config_name is not None, 'Using superpoint but config file name not specified'
+    GlobalHydra.instance().clear()
+    pyrootutils.setup_root(".", pythonpath=True)
+    with initialize(version_base='1.2', config_path="../../sp_configs"):
+        sp_cfg = compose(config_name=config_name, overrides=overrides)
+    return sp_cfg
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -72,12 +82,23 @@ def get_args():
                                type=str,
                                help='YAML config file specifying default arguments')
 
+    config_parser.add_argument('-s',
+                                '--spconfig',
+                                default=None,
+                                type=str,
+                                help='YAML config file specifying superpoint arguments')
+    
     args_config, remaining = config_parser.parse_known_args()
     assert args_config.config is not None, 'Config file must be specified'
 
     with open(args_config.config, 'r') as f:
         cfg = yaml.safe_load(f)
         parser.set_defaults(**cfg)
+    
+    if args_config.spconfig is not None:
+        sp_cfg = init_spconfig(config_name=osp.split(args_config.spconfig)[1])
+        parser.set_defaults(**sp_cfg)
+
     args = parser.parse_args(remaining)
     args.exp_dir = osp.join('experiments', osp.relpath(args_config.config, 'configs')[:-5])
     args.start_time = get_time_str()
@@ -95,7 +116,14 @@ def get_args():
         args.resume = resume_path
 
     # Cache the args as a text string to save them in the output dir later
-    args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
+    args_dict = args.__dict__.copy()
+    remove_keys = ['datamodule', 'extras', 'local', 'paths']
+    for key in remove_keys:
+        args_dict.pop(key, None)
+
+    args_text = yaml.safe_dump(args_dict, default_flow_style=False)
+    del args_dict
+    
     return args, args_text
 
 
