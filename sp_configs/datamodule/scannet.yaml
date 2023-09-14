@@ -1,9 +1,11 @@
 defaults:
   - default.yaml
 
+sp_base: sp_scannet
 data_dir: /data/share/datasets
 save_processed_root: /data/discover-08/caiz/datasets
 ignore_label: 255
+stage: scans
 
 # These parameters are not actually used by the DataModule, but are used
 # here to facilitate model parameterization with config interpolation
@@ -91,7 +93,6 @@ pre_transform:
         device: 'cuda'
     - transform: GridSampling3D  # might OOM on CUDA if voxel and GPU memory too small
       params:
-        # mode: 'last'
         size: ${datamodule.voxel}
         hist_key: 'y'
         hist_size: ${eval:'${datamodule.num_classes} + 1'}

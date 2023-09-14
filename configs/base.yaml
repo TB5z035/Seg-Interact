@@ -2,7 +2,7 @@ pretrained:
 
 seed: 42
 
-world_size: 4
+world_size: 1
 save_epoch_freq: 5
 val_epoch_freq: 5
 
@@ -11,7 +11,7 @@ model: MinkUNet34C
 train_dataset: 
   name: scannet_quantized_fast
   args:
-    root: /data15/tb5zhh/workspace/2023/ScanNetFast
+    root: /data/share/datasets/ScanNet
     split: train
     transform:
       - elastic_distortion:
@@ -49,7 +49,7 @@ train_dataset:
 val_dataset:
   name: scannet_quantized_fast
   args: 
-    root: /data15/tb5zhh/workspace/2023/ScanNetFast
+    root: /data/share/datasets/ScanNet
     split: val
     transform:
       - point_chromatic_normalize:

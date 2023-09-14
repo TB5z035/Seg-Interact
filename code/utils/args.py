@@ -66,7 +66,7 @@ def get_args():
                         default=200,
                         help='number of points to update after each inference')
     parser.add_argument("--labeling_inference_epoch", type=int, default=5)
-    parser.add_argument("--inference_save_path", type=str, default='/home/Guest/caiz/labeling_inference/run1')
+    parser.add_argument("--inference_save_path", type=str, default='')
 
     # Visualization
     parser.add_argument("--visualize", type=list, default=None, help='whether or how to visualize point cloud')

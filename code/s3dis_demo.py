@@ -17,8 +17,6 @@ cfg, _ = get_args()
 cfg_dm = cfg.datamodule
 
 dataset = sp_init(cfg_dm, sp_S3DIS)
-print(dataset)
-
 
 # 6 areas of s3dis dataset, nag_[i] is a NAG object of that area
 nag_0 = dataset[0]
@@ -28,14 +26,12 @@ nag_3 = dataset[3]
 nag_4 = dataset[4]
 nag_5 = dataset[5]
 nag = nag_0
-print(nag)
 
 xyz = nag_0[0].pos
 labels = nag_0[0].y.argmax(1)
 
 super_indices = nag.get_super_index(3,0)
 indices = torch.where(super_indices == 0)
-print(labels[indices])
 
 #Full Vis
 '''

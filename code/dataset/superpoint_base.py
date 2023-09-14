@@ -189,7 +189,9 @@ class SuperpointBase(InMemoryDataset):
         assert xy_tiling is None and pc_tiling is None, 'tilings should not be used'
 
         # Initialization with downloading and all preprocessing
-        root = osp.join(root, self.data_subdir_name)
+        if osp.split(root)[1] != self.data_subdir_name:
+            root = osp.join(root, self.data_subdir_name)
+
         super().__init__(root=root, pre_transform=pre_transform)
 
         # Display the dataset pre_transform_hash and full path
@@ -343,7 +345,6 @@ class SuperpointBase(InMemoryDataset):
     @property
     def processed_dir(self) -> str:
         if self.save_processed_root != None:
-            
             return osp.join(self.save_processed_root, self.data_subdir_name, 'processed')
         else:
             return osp.join(self.root, 'processed')
@@ -397,7 +398,7 @@ class SuperpointBase(InMemoryDataset):
                 "the pre-processed version of this dataset. If you want to "
                 "make use of another pre-fitering technique, make sure to "
                 "delete '{self.processed_dir}' first")
-
+            
         if files_exist(self.processed_paths):  # pragma: no cover
             return
 
@@ -448,8 +449,6 @@ class SuperpointBase(InMemoryDataset):
         raw_path = self.processed_to_raw_path(cloud_path)
         data = self.read_single_raw_cloud(raw_path)
 
-        #print(data['pos'].dtype, data['rgb'].dtype, data['y'].dtype)
-
         if getattr(data, 'y', None) is not None:
             data.y[data.y == self.ignore] = self.num_classes
 
@@ -458,8 +457,6 @@ class SuperpointBase(InMemoryDataset):
             nag = self.pre_transform(data)
         else:
             nag = NAG([data])
-
-        #print(nag[0]['pos'].dtype, nag[0]['rgb'].dtype, nag[0]['y'].dtype)
 
         # To save some disk space, we discard some level-0 attributes
         if self.point_save_keys is not None:

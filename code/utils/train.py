@@ -22,6 +22,7 @@ from .args import get_args
 from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, save_checkpoint, clean_inference_paths, clean_prev_inf_paths, clean_vis_paths
 from .validate import validate
 from .pseudo_update import label_update, get_n_update_count
+from ..dataset.superpoint_base import sp_init
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -51,16 +52,29 @@ def train(local_rank=0, world_size=1, args=None):
     writer = init_logger(args)
 
     # Dataset
-    train_dataset = DATASETS[args.train_dataset['name']](**(args.train_dataset['args'] | {
-        'labeling_inference': args.labeling_inference,
-        'inference_save_path': args.inference_save_path
-    }))
-    val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
-    inf_dataset = DATASETS[args.inf_dataset['name']](**args.inf_dataset['args'])
+    if hasattr(args, 'datamodule'):
+        from omegaconf import OmegaConf
+        OmegaConf.register_new_resolver("eval", eval)
+        sp_dataset = DATASETS[args.datamodule['sp_base']](**(args.train_dataset['args'] | {'sp_cfg': args.datamodule}))
+
+        train_dataset = DATASETS[args.train_dataset['name']](**(args.train_dataset['args'] | {'sp_cls': sp_dataset}))
+        val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'] | {'sp_cls': sp_dataset})
+    else:
+        train_dataset = DATASETS[args.train_dataset['name']](**(args.train_dataset['args']))
+        val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
+    # train_dataset = DATASETS[args.train_dataset['name']](**(args.train_dataset['args'] | {
+    #     'labeling_inference': args.labeling_inference,
+    #     'inference_save_path': args.inference_save_path
+    # }))
+    # val_dataset = DATASETS[args.val_dataset['name']](**args.val_dataset['args'])
+
+    # inf_dataset = DATASETS[args.inf_dataset['name']](**args.inf_dataset['args'])
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
     logger.info(
-        f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}\nInf dataset: {args.inf_dataset}")
+        f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}")
+    # logger.info(
+    #     f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}\nInf dataset: {args.inf_dataset}")
         
     # DataLoader
     if world_size > 1:
@@ -78,19 +92,24 @@ def train(local_rank=0, world_size=1, args=None):
         num_workers=args.train_num_workers,
         sampler=train_sampler,
         collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)
-    val_dataloader = DataLoader(val_dataset,
-                                batch_size=args.val_batch_size,
-                                shuffle=False,
-                                num_workers=args.val_num_workers,
-                                collate_fn=val_dataset._collate_fn)
-    inf_dataloader = DataLoader(inf_dataset,
-                                batch_size=args.val_batch_size,
-                                shuffle=False,
-                                num_workers=args.val_num_workers,
-                                collate_fn=inf_dataset._collate_fn)
-    logger.info(
-        f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}\nInf dataloader: {len(inf_dataloader)}"
-    )
+    # val_dataloader = DataLoader(val_dataset,
+    #                             batch_size=args.val_batch_size,
+    #                             shuffle=False,
+    #                             num_workers=args.val_num_workers,
+    #                             collate_fn=val_dataset._collate_fn)
+    
+    for i,x in enumerate(train_dataloader):
+        #print(x[0][0])
+        exit()
+
+    # inf_dataloader = DataLoader(inf_dataset,
+    #                             batch_size=args.val_batch_size,
+    #                             shuffle=False,
+    #                             num_workers=args.val_num_workers,
+    #                             collate_fn=inf_dataset._collate_fn)
+    logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}")
+    # logger.info(
+    #     f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}\nInf dataloader: {len(inf_dataloader)}")
 
     # Model
     network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes)
@@ -179,9 +198,9 @@ def train(local_rank=0, world_size=1, args=None):
         #     print(torch.cuda.memory_summary())
 
     # Visualize
-    if args.visualize:
-        label_update(args, network, inf_dataloader, point_criterion, 'final')
-        prep_files_for_visuaization(inf_dataset, args.inference_save_path, args.vis_save_path, args.visualize)
+    # if args.visualize:
+    #     label_update(args, network, inf_dataloader, point_criterion, 'final')
+    #     prep_files_for_visuaization(inf_dataset, args.inference_save_path, args.vis_save_path, args.visualize)
     #save_checkpoint(network, args, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name=f'last')
 
 

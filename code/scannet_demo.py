@@ -7,24 +7,19 @@ from .sp_visualization import show
 from .dataset.scannet import CLASS_NAMES, CLASS_COLORS
 from .dataset.scannet import ScanNet_NUM_CLASSES as NUM_CLASSES
 from .dataset.sp_transforms import *
-from .dataset.scannet import sp_scannet
-from .dataset.superpoint_base import sp_init
 from .utils.args import get_args
+from .dataset import DATASETS
 
 
 cfg, _ = get_args()
 cfg_dm = cfg.datamodule
 
-dataset = sp_init(cfg_dm, sp_scannet)
-print(dataset)
+dataset = DATASETS[cfg.datamodule['sp_base']](**(cfg.train_dataset['args'] | {'sp_cfg': cfg_dm}))
 
-nag = dataset[100]
+nag = dataset[200]
 
 xyz = nag[0].pos
 rgb = nag[0].rgb
-print(rgb)
-# print(dataset.processed_paths[100])
-# np.save('/data/discover-08/caiz/Seg-Interact/code/RGB.npy', rgb)
 labels = nag[0].y.argmax(1)
 
 super_indices = nag.get_super_index(3,0)

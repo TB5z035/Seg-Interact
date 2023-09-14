@@ -159,13 +159,6 @@ class GridSampling3D(Transform):
         # Save the grid size in the Data attributes
         data.grid_size = torch.tensor([self.grid_size])
 
-        # rgb = data['rgb']
-        # xyz = data['pos']
-        # xyzrgb = torch.concat((xyz, rgb), dim=1)
-        # xyzrgb = xyzrgb.cpu().numpy()
-        # print(xyzrgb)
-        # np.savetxt('/data/discover-08/caiz/Seg-Interact/code/xyzrgb.txt', xyzrgb)
-        # exit()
         return data
 
 

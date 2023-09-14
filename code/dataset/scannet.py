@@ -16,6 +16,8 @@ from .superpoint_base import SuperpointBase
 from .scannet_config import *
 from ..utils.misc import seq_2_ordered_set
 from ..data import Data, Batch, NAG
+from .sp_transforms import instantiate_transforms
+from .superpoint_base import sp_init
 from ..sp_utils import available_cpu_count, starmap_with_kwargs, \
     rodrigues_rotation_matrix, to_float_rgb
 
@@ -209,6 +211,7 @@ class ScannetDataset(Dataset):
         self.split = split
         self.transform = parse_transform(transform)
         self._load_scene_ids(split)
+        
 
     def _load_scene_ids(self, split):
         """
@@ -508,10 +511,31 @@ class ScanNetQuantizedLimitedFast(ScanNetQuantizedLimited, FastLoad):
 
 
 @register_dataset('sp_scannet')
-class sp_scannet(FastLoad, SuperpointBase):
+class sp_scannet(SuperpointBase):
 
-    def __init__(self, *args, **kwargs):
-        SuperpointBase.__init__(self, stage='scans', *args, **kwargs)
+    def __init__(self, **kwargs):
+        sp_cfg = kwargs['sp_cfg']
+
+        # Superpoint Init
+        for key_name in sp_cfg.keys():
+            if "transform" in key_name:
+                params = getattr(sp_cfg, key_name, None)
+                if params is None:
+                    continue
+                pre_transform = instantiate_transforms(params)
+        
+        sp_cfg_dict = sp_cfg.__dict__
+        sp_cfg_dict.pop('data_dir', None)
+        sp_cfg_dict.pop('pre_transform', None)
+
+        SuperpointBase.__init__(self,
+                                root=kwargs['root'],
+                                stage=sp_cfg.stage,
+                                pre_transform=pre_transform,
+                                save_processed_root=sp_cfg.save_processed_root,
+                                ignore_label=sp_cfg.ignore_label,
+                                **sp_cfg_dict)
+
 
     @property
     def dataset_name(self):
@@ -676,3 +700,42 @@ class sp_scannet(FastLoad, SuperpointBase):
         nag = nag if self.transform is None else self.transform(nag)
 
         return nag
+
+
+@register_dataset('superpoint_scannet')
+class superpoint_scannt(FastLoad):
+
+    def __init__(self, sp_cls: object, **kwargs):
+        self.sp_cls = sp_cls
+        super().__init__(**kwargs)
+    
+    def _collate_fn(self, batch):
+        inputs, labels, extras = list(zip(*batch))
+        coords, colors = list(zip(*inputs))
+        bextras = {}
+        for key in extras[0].keys():
+            bextras[key] = tuple(extras[extra_idx]['scene_id']
+                                 for extra_idx in range(len(extras))
+                                 for _ in range(len(labels[extra_idx]))) if key == 'scene_id' else tuple(
+                                     [extra[key] for extra in extras])
+            
+        indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
+        bcoords = torch.cat((indices, torch.cat(coords, 0)), -1)
+        bcolors = torch.cat(colors, 0)
+        blabels = torch.cat(labels, 0)
+
+        return (bcoords, bcolors), blabels, bextras
+
+    def __getitem__(self, index) -> dict:
+        scene_id = self.scene_ids[index]
+        sp_scene_index =  self.sp_cls.cloud_ids.index(scene_id)
+        nag = self.sp_cls[sp_scene_index]
+
+        coords, colors, labels = nag[0].pos, nag[0].rgb, nag[0].y.argmax(1)
+        scene_path = self.sp_cls.processed_paths[sp_scene_index]
+
+        coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
+        colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
+        labels = torch.from_numpy(labels.astype(np.int64)) if type(labels) != torch.Tensor else labels
+
+        return (coords, colors), labels, {'scene_id': scene_id}
