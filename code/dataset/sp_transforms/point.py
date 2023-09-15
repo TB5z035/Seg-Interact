@@ -7,11 +7,10 @@ from ...sp_utils import rgb2hsv, rgb2lab, sizes_to_pointers, to_float_rgb, \
 from . import Transform
 from ...data import NAG
 
-
 __all__ = [
-    'PointFeatures', 'GroundElevation', 'RoomPosition', 'ColorAutoContrast',
-    'NAGColorAutoContrast', 'ColorDrop', 'NAGColorDrop', 'ColorNormalize',
-    'NAGColorNormalize']
+    'PointFeatures', 'GroundElevation', 'RoomPosition', 'ColorAutoContrast', 'NAGColorAutoContrast', 'ColorDrop',
+    'NAGColorDrop', 'ColorNormalize', 'NAGColorNormalize'
+]
 
 
 class PointFeatures(Transform):
@@ -60,8 +59,7 @@ class PointFeatures(Transform):
         neighborhood size. It is advised to use a value of 10 or higher.
     """
 
-    def __init__(
-            self, keys=None, k_min=5, k_step=-1, k_min_search=25):
+    def __init__(self, keys=None, k_min=5, k_step=-1, k_min_search=25):
         self.keys = sanitize_keys(keys, default=POINT_FEATURES)
         self.k_min = k_min
         self.k_step = k_step
@@ -108,24 +106,18 @@ class PointFeatures(Transform):
         if 'density' in self.keys:
             dmax = data.neighbor_distance.max(dim=1).values
             k = data.neighbor_index.ge(0).sum(dim=1)
-            data.density = (k / dmax ** 2).view(-1, 1)
+            data.density = (k / dmax**2).view(-1, 1)
 
         # Add local geometric features
-        needs_geof = any((
-            'linearity' in self.keys,
-            'planarity' in self.keys,
-            'scattering' in self.keys,
-            'verticality' in self.keys,
-            'normal' in self.keys))
+        needs_geof = any(('linearity' in self.keys, 'planarity' in self.keys, 'scattering' in self.keys, 'verticality'
+                          in self.keys, 'normal' in self.keys))
         if needs_geof and data.pos is not None:
 
             # Prepare data for numpy boost interface. Note: we add each
             # point to its own neighborhood before computation
             device = data.pos.device
             xyz = data.pos.cpu().numpy()
-            nn = torch.cat(
-                (torch.arange(xyz.shape[0]).view(-1, 1), data.neighbor_index),
-                dim=1)
+            nn = torch.cat((torch.arange(xyz.shape[0]).view(-1, 1), data.neighbor_index), dim=1)
             k = nn.shape[1]
 
             # Check for missing neighbors (indicated by -1 indices)
@@ -146,9 +138,13 @@ class PointFeatures(Transform):
             nn_ptr = np.ascontiguousarray(nn_ptr)
 
             # C++ geometric features computation on CPU
-            f = pgeof(
-                xyz, nn, nn_ptr, k_min=self.k_min, k_step=self.k_step,
-                k_min_search=self.k_min_search, verbose=False)
+            f = pgeof(xyz,
+                      nn,
+                      nn_ptr,
+                      k_min=self.k_min,
+                      k_step=self.k_step,
+                      k_min_search=self.k_min_search,
+                      verbose=False)
             f = torch.from_numpy(f.astype('float32'))
 
             # Keep only required features
@@ -220,8 +216,7 @@ class GroundElevation(Transform):
         idx_low = np.where(pos[:, 2] - pos[:, 2].min() < self.threshold)[0]
 
         # Search the ground plane using RANSAC
-        ransac = RANSACRegressor(random_state=0, residual_threshold=1e-3).fit(
-            pos[idx_low, :2], pos[idx_low, 2])
+        ransac = RANSACRegressor(random_state=0, residual_threshold=1e-3).fit(pos[idx_low, :2], pos[idx_low, 2])
 
         # Compute the pointwise elevation as the distance to the plane
         # and scale it
@@ -304,8 +299,7 @@ class ColorTransform(Transform):
                     data[mean_key] = self._apply_func(data[mean_key])
 
         elif self.x_idx is not None and getattr(data, 'x', None) is not None:
-            data.x[:, self.x_idx:self.x_idx + 3] = self._apply_func(
-                data.x[:, self.x_idx:self.x_idx + 3])
+            data.x[:, self.x_idx:self.x_idx + 3] = self._apply_func(data.x[:, self.x_idx:self.x_idx + 3])
 
         return data
 
@@ -396,9 +390,7 @@ class NAGColorAutoContrast(ColorAutoContrast):
         else:
             raise ValueError(f'Unsupported level={self.level}')
 
-        transforms = [
-            ColorAutoContrast(p=p, blend=self.blend, x_idx=self.x_idx)
-            for p in level_p]
+        transforms = [ColorAutoContrast(p=p, blend=self.blend, x_idx=self.x_idx) for p in level_p]
 
         for i_level in range(nag.num_levels):
             nag._list[i_level] = transforms[i_level](nag._list[i_level])
@@ -486,11 +478,7 @@ class ColorNormalize(ColorTransform):
     """
     KEYS = ['rgb']
 
-    def __init__(
-            self,
-            mean=[0.5136457, 0.49523646, 0.44921124],
-            std=[0.18308958, 0.18415008, 0.19252081],
-            x_idx=None):
+    def __init__(self, mean=[0.5136457, 0.49523646, 0.44921124], std=[0.18308958, 0.18415008, 0.19252081], x_idx=None):
         super().__init__(x_idx=x_idx)
         assert all(x > 0 for x in std), "std values must be >0"
         self.mean = mean
@@ -550,9 +538,7 @@ class NAGColorNormalize(ColorNormalize):
         else:
             raise ValueError(f'Unsupported level={self.level}')
 
-        transforms = [
-            ColorNormalize(mean=mean, std=std, x_idx=self.x_idx)
-            for mean, std in zip(level_mean, level_std)]
+        transforms = [ColorNormalize(mean=mean, std=std, x_idx=self.x_idx) for mean, std in zip(level_mean, level_std)]
 
         for i_level in range(nag.num_levels):
             nag._list[i_level] = transforms[i_level](nag._list[i_level])

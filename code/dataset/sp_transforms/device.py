@@ -2,7 +2,6 @@ import torch
 from . import Transform
 from ...data import NAG
 
-
 __all__ = ['DataTo', 'NAGTo']
 
 

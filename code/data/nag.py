@@ -8,7 +8,6 @@ from .data import Data, Batch
 from ..sp_utils import tensor_idx, has_duplicates, sparse_sample
 from ..utils import sp_debug
 
-
 __all__ = ['NAG', 'NAGBatch']
 
 
@@ -173,8 +172,7 @@ class NAG:
         # and superpoint indices accordingly. The returned 'out_sub' and
         # 'out_super' will help us update the lower and higher hierarchy
         # levels iteratively
-        data_list[i_level], out_sub, out_super = self[i_level].select(
-            idx, update_sub=True, update_super=True)
+        data_list[i_level], out_sub, out_super = self[i_level].select(idx, update_sub=True, update_super=True)
 
         # Iteratively update lower hierarchy levels
         for i in range(i_level - 1, -1, -1):
@@ -183,8 +181,7 @@ class NAG:
 
             # Select points but do not update 'super_index', it will be
             # directly provided by the above-level's 'sub_super'
-            data_list[i], out_sub, _ = self[i].select(
-                idx_sub, update_sub=True, update_super=False)
+            data_list[i], out_sub, _ = self[i].select(idx_sub, update_sub=True, update_super=False)
 
             # Directly update the 'super_index' using 'sub_super' from
             # the above level
@@ -197,8 +194,7 @@ class NAG:
 
             # Select points but do not update 'sub', it will be directly
             # provided by the above-level's 'super_sub'
-            data_list[i], _, out_super = self[i].select(
-                idx_super, update_sub=False, update_super=True)
+            data_list[i], _, out_super = self[i].select(idx_super, update_sub=False, update_super=True)
 
             # Directly update the 'sub' using 'super_sub' from the above
             # level
@@ -209,12 +205,7 @@ class NAG:
 
         return nag
 
-    def save(
-            self,
-            path,
-            y_to_csr=True,
-            pos_dtype=torch.float,
-            fp_dtype=torch.float):
+    def save(self, path, y_to_csr=True, pos_dtype=torch.float, fp_dtype=torch.float):
         """Save NAG to HDF5 file.
 
         :param path:
@@ -233,24 +224,19 @@ class NAG:
         with h5py.File(path, 'w') as f:
             for i_level, data in enumerate(self):
                 g = f.create_group(f'partition_{i_level}')
-                data.save(
-                    g,
-                    y_to_csr=y_to_csr,
-                    pos_dtype=pos_dtype,
-                    fp_dtype=fp_dtype)
+                data.save(g, y_to_csr=y_to_csr, pos_dtype=pos_dtype, fp_dtype=fp_dtype)
 
     @staticmethod
-    def load(
-            path,
-            low=0,
-            high=-1,
-            idx=None,
-            keys_idx=None,
-            keys_low=None,
-            keys=None,
-            update_super=True,
-            update_sub=True,
-            verbose=False):
+    def load(path,
+             low=0,
+             high=-1,
+             idx=None,
+             keys_idx=None,
+             keys_low=None,
+             keys=None,
+             update_super=True,
+             update_sub=True,
+             verbose=False):
         """Load NAG from an HDF5 file. See `NAG.save` for writing such
         file. Options allow reading only part of the data.
 
@@ -288,26 +274,25 @@ class NAG:
             high = len(f) - 1 if high < 0 else min(high, len(f) - 1)
 
             # Make sure all required partitions are present in the file
-            assert all([
-                f'partition_{k}' in f.keys()
-                for k in range(low, high + 1)])
+            assert all([f'partition_{k}' in f.keys() for k in range(low, high + 1)])
 
             # Apply index selection on the low only, if required. For
             # all subsequent levels, only keys selection is available
             for i in range(low, high + 1):
                 start = time()
                 if i == low:
-                    data = Data.load(
-                        f[f'partition_{i}'], idx=idx, keys_idx=keys_idx,
-                        keys=keys_low, update_sub=update_sub,
-                        verbose=verbose)
+                    data = Data.load(f[f'partition_{i}'],
+                                     idx=idx,
+                                     keys_idx=keys_idx,
+                                     keys=keys_low,
+                                     update_sub=update_sub,
+                                     verbose=verbose)
                 else:
-                    data = Data.load(
-                        f[f'partition_{i}'], keys=keys, update_sub=False,
-                        verbose=verbose)
+                    data = Data.load(f[f'partition_{i}'], keys=keys, update_sub=False, verbose=verbose)
                 data_list.append(data)
                 if verbose:
-                    print(f'NAG.load lvl-{i:<12} : 'f'{time() - start:0.3f}s\n')
+                    print(f'NAG.load lvl-{i:<12} : '
+                          f'{time() - start:0.3f}s\n')
 
         # In the case where update_super is not required but the low
         # level was indexed, we cannot combine the leve-0 and level-1+
@@ -381,14 +366,7 @@ class NAG:
                 assert d.num_points == self[i + 1].num_sub
             d.debug()
 
-    def get_sampling(
-            self,
-            high=1,
-            low=0,
-            n_max=32,
-            n_min=1,
-            mask=None,
-            return_pointers=False):
+    def get_sampling(self, high=1, low=0, n_max=32, n_min=1, mask=None, return_pointers=False):
         """Compute indices to sample elements at `low`-level, based on
         which segment they belong to at `high`-level.
 
@@ -424,14 +402,10 @@ class NAG:
             sampling indices belong to which `high`-level segment
         """
         super_index = self.get_super_index(high, low=low)
-        return sparse_sample(
-            super_index, n_max=n_max, n_min=n_min, mask=mask,
-            return_pointers=return_pointers)
+        return sparse_sample(super_index, n_max=n_max, n_min=n_min, mask=mask, return_pointers=return_pointers)
 
     def __repr__(self):
-        info = [
-            f"{key}={getattr(self, key)}"
-            for key in ['num_levels', 'num_points', 'device']]
+        info = [f"{key}={getattr(self, key)}" for key in ['num_levels', 'num_points', 'device']]
         return f"{self.__class__.__name__}({', '.join(info)})"
 
     def __eq__(self, other):
@@ -459,8 +433,7 @@ class NAGBatch(NAG):
         assert isinstance(nag_list, list)
         assert len(nag_list) > 0
         assert all(isinstance(x, NAG) for x in nag_list)
-        return NAGBatch([
-            Batch.from_data_list(l) for l in zip(*[n._list for n in nag_list])])
+        return NAGBatch([Batch.from_data_list(l) for l in zip(*[n._list for n in nag_list])])
 
     def to_nag_list(self):
         return [NAG(l) for l in zip(*[b.to_data_list() for b in self])]

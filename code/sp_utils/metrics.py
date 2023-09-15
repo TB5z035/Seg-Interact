@@ -1,7 +1,6 @@
 import torch
 from torch_scatter import scatter_add
 
-
 __all__ = ['histogram_to_atomic', 'atomic_to_histogram']
 
 
@@ -26,9 +25,7 @@ def histogram_to_atomic(gt, pred):
     device = pred.device
 
     # Flatten the pointwise ground truth
-    point_gt = torch.arange(
-        num_classes, device=device).repeat(num_nodes).repeat_interleave(
-        gt.flatten())
+    point_gt = torch.arange(num_classes, device=device).repeat(num_nodes).repeat_interleave(gt.flatten())
 
     # Expand the pointwise ground truth
     point_pred = pred.repeat_interleave(gt.sum(dim=1), dim=0)
@@ -76,14 +73,11 @@ def atomic_to_histogram(item, idx, n_bins=None):
 
     # Prepend 0 columns to the histogram for bins removed due to
     # offsetting
-    bins_before = torch.zeros(
-        N, offset, device=device, dtype=torch.long)
+    bins_before = torch.zeros(N, offset, device=device, dtype=torch.long)
     hist = torch.cat((bins_before, hist), dim=1)
 
     # Append columns to the histogram for unobserved classes/bins
-    bins_after = torch.zeros(
-        N, n_bins - hist.shape[1], device=device,
-        dtype=torch.long)
+    bins_after = torch.zeros(N, n_bins - hist.shape[1], device=device, dtype=torch.long)
     hist = torch.cat((hist, bins_after), dim=1)
 
     # Restore input dtype

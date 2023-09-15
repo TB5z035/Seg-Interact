@@ -2,7 +2,6 @@ from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from .sparse import indices_to_pointers
 from .tensor import arange_interleave
 
-
 __all__ = ['edge_index_to_uid', 'edge_wise_points']
 
 

@@ -6,10 +6,10 @@ from torch_geometric.utils import coalesce
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from .edge import edge_wise_points
 
-
 __all__ = [
-    'scatter_mean_weighted', 'scatter_pca', 'scatter_nearest_neighbor',
-    'idx_preserving_mask', 'scatter_mean_orientation']
+    'scatter_mean_weighted', 'scatter_pca', 'scatter_nearest_neighbor', 'idx_preserving_mask',
+    'scatter_mean_orientation'
+]
 
 
 def scatter_mean_weighted(x, idx, w, dim_size=None):
@@ -78,8 +78,7 @@ def scatter_pca(x, idx, on_cpu=True):
 
     # If Nan values are computed, return equal eigenvalues and
     # Identity eigenvectors
-    idx_nan = torch.where(torch.logical_and(
-        eval.isnan().any(1), evec.flatten(1).isnan().any(1)))
+    idx_nan = torch.where(torch.logical_and(eval.isnan().any(1), evec.flatten(1).isnan().any(1)))
     eval[idx_nan] = torch.ones(3, dtype=eval.dtype, device=device)
     evec[idx_nan] = torch.eye(3, dtype=evec.dtype, device=device)
 
@@ -90,8 +89,7 @@ def scatter_pca(x, idx, on_cpu=True):
     return eval, evec
 
 
-def scatter_nearest_neighbor(
-        points, index, edge_index, cycles=3, chunk_size=None):
+def scatter_nearest_neighbor(points, index, edge_index, cycles=3, chunk_size=None):
     """For each pair of segments indicated in edge_index, find the 2
     closest points between the two segments.
 
@@ -130,9 +128,8 @@ def scatter_nearest_neighbor(
         for i_chunk in range(num_chunks):
             start = i_chunk * chunk_size
             end = (i_chunk + 1) * chunk_size
-            out_list.append(scatter_nearest_neighbor(
-                points, index, edge_index[:, start:end], cycles=cycles,
-                chunk_size=None))
+            out_list.append(
+                scatter_nearest_neighbor(points, index, edge_index[:, start:end], cycles=cycles, chunk_size=None))
 
         # Combine outputs
         candidate = torch.cat([elt[0] for elt in out_list], dim=0)
@@ -167,8 +164,8 @@ def scatter_nearest_neighbor(
     # candidate
     def step(source=True):
         if source:
-             x_idx, y_candidate, X_points, X_points_idx, X_uid = \
-                 s_idx, t_candidate, S_points, S_points_idx, S_uid
+            x_idx, y_candidate, X_points, X_points_idx, X_uid = \
+                s_idx, t_candidate, S_points, S_points_idx, S_uid
         else:
             x_idx, y_candidate, X_points, X_points_idx, X_uid = \
                 t_idx, s_candidate, T_points, T_points_idx, T_uid

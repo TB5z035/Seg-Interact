@@ -15,7 +15,6 @@ class BaseMetric:
         pass
 
 
-# Maybe base class is wrong
 @register_metric('IoU')
 class IoU(BaseMetric):
     NAME = 'IoU'

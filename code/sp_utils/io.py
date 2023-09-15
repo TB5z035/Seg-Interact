@@ -8,22 +8,15 @@ from datetime import datetime
 from .tensor import tensor_idx, cast_numpyfy
 from .sparse import dense_to_csr, csr_to_dense
 
-
-__all__ = [
-    'dated_dir', 'save_tensor', 'load_tensor', 'save_dense_to_csr',
-    'load_csr_to_dense']
+__all__ = ['dated_dir', 'save_tensor', 'load_tensor', 'save_dense_to_csr', 'load_csr_to_dense']
 
 
 def dated_dir(root, create=False):
     """Returns a directory path in root, named based on the current date
     and time.
     """
-    date = '-'.join([
-        f'{getattr(datetime.now(), x)}'
-        for x in ['year', 'month', 'day']])
-    time = '-'.join([
-        f'{getattr(datetime.now(), x)}'
-        for x in ['hour', 'minute', 'second']])
+    date = '-'.join([f'{getattr(datetime.now(), x)}' for x in ['year', 'month', 'day']])
+    time = '-'.join([f'{getattr(datetime.now(), x)}' for x in ['hour', 'minute', 'second']])
     dir_name = f'{date}_{time}'
     path = os.path.join(root, dir_name)
     if create and not os.path.exists(path):
@@ -161,9 +154,7 @@ def load_csr_to_dense(f, idx=None, verbose=False):
 
     # Create the new pointers
     start = time()
-    pointers = torch.cat([
-        torch.zeros(1, dtype=ptr_start.dtype),
-        torch.cumsum(ptr_end - ptr_start, 0)])
+    pointers = torch.cat([torch.zeros(1, dtype=ptr_start.dtype), torch.cumsum(ptr_end - ptr_start, 0)])
     if verbose:
         print(f'load_csr_to_dense pointers      : {time() - start:0.5f}s')
 
@@ -174,8 +165,7 @@ def load_csr_to_dense(f, idx=None, verbose=False):
     start = time()
     sizes = pointers[1:] - pointers[:-1]
     val_idx = torch.arange(pointers[-1])
-    val_idx -= torch.arange(pointers[-1] + 1)[
-        pointers[:-1]].repeat_interleave(sizes)
+    val_idx -= torch.arange(pointers[-1] + 1)[pointers[:-1]].repeat_interleave(sizes)
     val_idx += ptr_start.repeat_interleave(sizes)
     if verbose:
         print(f'load_csr_to_dense val_idx       : {time() - start:0.5f}s')

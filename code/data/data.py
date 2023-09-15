@@ -15,7 +15,6 @@ from ..sp_utils import tensor_idx, is_dense, has_duplicates, \
     load_csr_to_dense, to_trimmed, to_float_rgb, to_byte_rgb
 from ..utils import sp_debug
 
-
 __all__ = ['Data', 'Batch']
 
 
@@ -25,7 +24,6 @@ class Data(PyGData):
     """
 
     _NOT_INDEXABLE = ['_csr_', '_cluster_', 'edge_index', 'edge_attr']
-
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -76,13 +74,11 @@ class Data(PyGData):
         if getattr(self, 'batch', None) is not None:
             batch = self.batch
         else:
-            batch = torch.zeros(
-                self.num_nodes, device=self.device, dtype=torch.long)
+            batch = torch.zeros(self.num_nodes, device=self.device, dtype=torch.long)
         if self.super_index is not None:
             super_index = self.super_index
         else:
-            super_index = torch.zeros(
-                self.num_nodes, device=self.device, dtype=torch.long)
+            super_index = torch.zeros(self.num_nodes, device=self.device, dtype=torch.long)
         if mode == 'graph':
             return batch
         elif mode == 'node':
@@ -123,19 +119,16 @@ class Data(PyGData):
         """All keys starting with `edge_`, apart from `edge_index` and
         `edge_attr`.
         """
-        return [
-            k for k in self.keys
-            if k.startswith('edge_') and k not in ['edge_index', 'edge_attr']]
+        return [k for k in self.keys if k.startswith('edge_') and k not in ['edge_index', 'edge_attr']]
 
     def raise_if_edge_keys(self):
         """This is a TEMPORARY, HACKY method to be called wherever
         edge_keys may cause an issue.
         """
         if len(self.edge_keys) > 0:
-            raise NotImplementedError(
-                "Edge keys are not fully supported yet, please consider "
-                "stacking all your `edge_` attributes in `edge_attr` for the "
-                "time being")
+            raise NotImplementedError("Edge keys are not fully supported yet, please consider "
+                                      "stacking all your `edge_` attributes in `edge_attr` for the "
+                                      "time being")
 
     @property
     def v_edge_keys(self):
@@ -204,12 +197,11 @@ class Data(PyGData):
                 "Clusters must hold label histograms"
         if self.is_sub:
             if not is_dense(self.super_index):
-                print(
-                    "WARNING: super_index indices are generally expected to be "
-                    "dense (ie all indices in [0, super_index.max()] are used),"
-                    " which is not the case here. This may be because you are "
-                    "creating a Data object after applying a selection of "
-                    "points without updating the cluster indices.")
+                print("WARNING: super_index indices are generally expected to be "
+                      "dense (ie all indices in [0, super_index.max()] are used),"
+                      " which is not the case here. This may be because you are "
+                      "creating a Data object after applying a selection of "
+                      "points without updating the cluster indices.")
         if self.has_edges:
             assert self.edge_index.max() < self.num_points
             assert 0 <= self.edge_index.min()
@@ -301,10 +293,8 @@ class Data(PyGData):
             # the desired output can be computed with simple indexation
             # 'reindex[edge_index]'. This avoids using map() or
             # numpy.vectorize alternatives.
-            reindex = torch.full(
-                (self.num_nodes,), -1, dtype=torch.int64, device=device)
-            reindex = reindex.scatter_(
-                0, idx, torch.arange(idx.shape[0], device=device))
+            reindex = torch.full((self.num_nodes,), -1, dtype=torch.int64, device=device)
+            reindex = reindex.scatter_(0, idx, torch.arange(idx.shape[0], device=device))
             edge_index = reindex[self.edge_index]
 
             # Remove obsolete edges (ie those involving a '-1' index)
@@ -339,9 +329,7 @@ class Data(PyGData):
             # enough to maintain consistency with the current points. We
             # also need to update the super-level's 'Data.sub', which
             # can be computed from 'super_index'
-            super_sub = Cluster(
-                data.super_index, torch.arange(idx.shape[0], device=device),
-                dense=True)
+            super_sub = Cluster(data.super_index, torch.arange(idx.shape[0], device=device), dense=True)
 
             out_super = (idx_super, super_sub)
 
@@ -353,9 +341,8 @@ class Data(PyGData):
             # 'skip_keys' have already been dealt with earlier on, so we
             # can skip them here
             if key in warn_keys and sp_debug.is_debug_enabled():
-                print(
-                    f"WARNING: Data.select does not support '{key}', this "
-                    f"attribute will be absent from the output")
+                print(f"WARNING: Data.select does not support '{key}', this "
+                      f"attribute will be absent from the output")
             if key in skip_keys:
                 continue
 
@@ -430,8 +417,7 @@ class Data(PyGData):
         high = self.pos.max(dim=0).values
         low = self.pos.min(dim=0).values
         r_max = (high - low).norm()
-        neighbors, distances = knn_2(
-            self.pos, self.pos[is_out], k + 1, r_max=r_max)
+        neighbors, distances = knn_2(self.pos, self.pos[is_out], k + 1, r_max=r_max)
         distances = distances[:, 1:]
         neighbors = neighbors[:, 1:]
 
@@ -464,9 +450,8 @@ class Data(PyGData):
             a, b = torch.linalg.lstsq(d_1, w).solution
         except:
             if sp_debug.is_debug_enabled():
-                print(
-                    '\nWarning: torch.linalg.lstsq failed, trying again '
-                    'on CPU')
+                print('\nWarning: torch.linalg.lstsq failed, trying again '
+                      'on CPU')
             a, b = torch.linalg.lstsq(d_1.cpu(), w.cpu()).solution
             a = a.to(self.device)
             b = b.to(self.device)
@@ -493,8 +478,7 @@ class Data(PyGData):
         self.raise_if_edge_keys()
 
         if self.edge_attr is not None:
-            edge_index, edge_attr = to_trimmed(
-                self.edge_index, edge_attr=self.edge_attr, reduce=reduce)
+            edge_index, edge_attr = to_trimmed(self.edge_index, edge_attr=self.edge_attr, reduce=reduce)
         else:
             edge_index = to_trimmed(self.edge_index)
             edge_attr = None
@@ -532,12 +516,7 @@ class Data(PyGData):
                 return False
         return True
 
-    def save(
-            self,
-            f,
-            y_to_csr=True,
-            pos_dtype=torch.float,
-            fp_dtype=torch.float):
+    def save(self, f, y_to_csr=True, pos_dtype=torch.float, fp_dtype=torch.float):
         """Save Data to HDF5 file.
 
         :param f: h5 file path of h5py.File or h5py.Group
@@ -556,11 +535,7 @@ class Data(PyGData):
         """
         if not isinstance(f, (h5py.File, h5py.Group)):
             with h5py.File(f, 'w') as file:
-                self.save(
-                    file,
-                    y_to_csr=y_to_csr,
-                    pos_dtype=pos_dtype,
-                    fp_dtype=fp_dtype)
+                self.save(file, y_to_csr=y_to_csr, pos_dtype=pos_dtype, fp_dtype=fp_dtype)
             return
 
         assert isinstance(f, (h5py.File, h5py.Group))
@@ -585,9 +560,7 @@ class Data(PyGData):
                 raise NotImplementedError(f'Unsupported type={type(val)}')
 
     @staticmethod
-    def load(
-            f, idx=None, keys_idx=None, keys=None, update_sub=True,
-            verbose=False, rgb_to_float=False):
+    def load(f, idx=None, keys_idx=None, keys=None, update_sub=True, verbose=False, rgb_to_float=False):
         """Read an HDF5 file and return its content as a dictionary.
 
         :param f: h5 file path of h5py.File or h5py.Group
@@ -612,10 +585,13 @@ class Data(PyGData):
         """
         if not isinstance(f, (h5py.File, h5py.Group)):
             with h5py.File(f, 'r') as file:
-                out = Data.load(
-                    file, idx=idx, keys_idx=keys_idx, keys=keys,
-                    update_sub=update_sub, verbose=verbose,
-                    rgb_to_float=rgb_to_float)
+                out = Data.load(file,
+                                idx=idx,
+                                keys_idx=keys_idx,
+                                keys=keys,
+                                update_sub=update_sub,
+                                verbose=verbose,
+                                rgb_to_float=rgb_to_float)
             return out
 
         idx = tensor_idx(idx)
@@ -661,8 +637,7 @@ class Data(PyGData):
         for k in csr_keys:
             start = time()
             if k in keys_idx:
-                d_dict[k] = load_csr_to_dense(
-                    f['_csr_'][k], idx=idx, verbose=verbose)
+                d_dict[k] = load_csr_to_dense(f['_csr_'][k], idx=idx, verbose=verbose)
             elif k in keys:
                 d_dict[k] = load_csr_to_dense(f['_csr_'][k], verbose=verbose)
             if verbose and k in d_dict.keys():
@@ -672,13 +647,9 @@ class Data(PyGData):
         for k in cluster_keys:
             start = time()
             if k in keys_idx:
-                d_dict[k] = Cluster.load(
-                    f['_cluster_'][k], idx=idx, update_sub=update_sub,
-                    verbose=verbose)[0]
+                d_dict[k] = Cluster.load(f['_cluster_'][k], idx=idx, update_sub=update_sub, verbose=verbose)[0]
             elif k in keys:
-                d_dict[k] = Cluster.load(
-                    f['_cluster_'][k], update_sub=update_sub,
-                    verbose=verbose)[0]
+                d_dict[k] = Cluster.load(f['_cluster_'][k], update_sub=update_sub, verbose=verbose)[0]
             if verbose and k in d_dict.keys():
                 print(f'Data.load {k:<22}: {time() - start:0.5f}s')
 
@@ -713,10 +684,8 @@ class Batch(PyGBatch):
 
             # Little trick to prevent Batch.from_data_list from crashing
             # when some Data objects have edges while others don't
-            has = [
-                i for i, d in enumerate(data_list) if d.edge_index is not None]
-            has_not = [
-                i for i, d in enumerate(data_list) if d.edge_index is None]
+            has = [i for i, d in enumerate(data_list) if d.edge_index is not None]
+            has_not = [i for i, d in enumerate(data_list) if d.edge_index is None]
 
             if len(has) > 0 and len(has_not) > 0:
                 device = data_list[0].device
@@ -734,8 +703,7 @@ class Batch(PyGBatch):
 
             # PyG way of batching does not recognize some local classes such
             # as Cluster and CSRData, so it will accumulate them in lists
-            batch = super().from_data_list(
-                data_list, follow_batch=follow_batch, exclude_keys=exclude_keys)
+            batch = super().from_data_list(data_list, follow_batch=follow_batch, exclude_keys=exclude_keys)
 
         # Dirty trick: manually convert 'sub' to a proper ClusterBatch.
         # Note we will need to do the same in `get_example` to avoid

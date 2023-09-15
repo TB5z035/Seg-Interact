@@ -2,7 +2,6 @@ import os
 import re
 import subprocess
 
-
 __all__ = ['available_cpu_count']
 
 
@@ -14,8 +13,7 @@ def available_cpu_count():
     # cpuset
     # cpuset may restrict the number of *available* processors
     try:
-        m = re.search(r'(?m)^Cpus_allowed:\s*(.*)$',
-                      open('/proc/self/status').read())
+        m = re.search(r'(?m)^Cpus_allowed:\s*(.*)$', open('/proc/self/status').read())
         if m:
             res = bin(int(m.group(1).replace(',', ''), 16)).count('1')
             if res > 0:
@@ -33,7 +31,7 @@ def available_cpu_count():
     # https://github.com/giampaolo/psutil
     try:
         import psutil
-        return psutil.cpu_count()   # psutil.NUM_CPUS on old versions
+        return psutil.cpu_count()  # psutil.NUM_CPUS on old versions
     except (ImportError, AttributeError):
         pass
 
@@ -69,8 +67,7 @@ def available_cpu_count():
 
     # BSD
     try:
-        sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'],
-                                  stdout=subprocess.PIPE)
+        sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'], stdout=subprocess.PIPE)
         scStdout = sysctl.communicate()[0]
         res = int(scStdout)
 

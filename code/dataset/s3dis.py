@@ -13,18 +13,24 @@ from ..data import Data, Batch
 from ..sp_utils import available_cpu_count, starmap_with_kwargs, \
     rodrigues_rotation_matrix, to_float_rgb
 
-
 DIR = osp.dirname(osp.realpath(__file__))
 log = logging.getLogger(__name__)
-
 
 ########################################################################
 #                                 Utils                                #
 ########################################################################
 
-def read_s3dis_area(
-        area_dir, xyz=True, rgb=True, semantic=True, instance=False,
-        xyz_room=False, align=False, is_val=True, verbose=False, processes=-1):
+
+def read_s3dis_area(area_dir,
+                    xyz=True,
+                    rgb=True,
+                    semantic=True,
+                    instance=False,
+                    xyz_room=False,
+                    align=False,
+                    is_val=True,
+                    verbose=False,
+                    processes=-1):
     """Read all S3DIS object-wise annotations in a given Area directory.
     All room-wise data are accumulated into a single cloud.
 
@@ -58,18 +64,22 @@ def read_s3dis_area(
         Batch of accumulated points clouds
     """
     # List the object-wise annotation files in the room
-    room_directories = sorted(
-        [x for x in glob.glob(osp.join(area_dir, '*')) if osp.isdir(x)])
+    room_directories = sorted([x for x in glob.glob(osp.join(area_dir, '*')) if osp.isdir(x)])
 
     # Read all rooms in the Area and concatenate point clouds in a Batch
     processes = available_cpu_count() if processes < 1 else processes
     args_iter = [[r] for r in room_directories]
     kwargs_iter = {
-        'xyz': xyz, 'rgb': rgb, 'semantic': semantic, 'instance': instance,
-        'xyz_room': xyz_room, 'align': align, 'is_val': is_val,
-        'verbose': verbose}
-    batch = Batch.from_data_list(starmap_with_kwargs(
-        read_s3dis_room, args_iter, kwargs_iter, processes=processes))
+        'xyz': xyz,
+        'rgb': rgb,
+        'semantic': semantic,
+        'instance': instance,
+        'xyz_room': xyz_room,
+        'align': align,
+        'is_val': is_val,
+        'verbose': verbose
+    }
+    batch = Batch.from_data_list(starmap_with_kwargs(read_s3dis_room, args_iter, kwargs_iter, processes=processes))
 
     # Convert from Batch to Data
     data_dict = batch.to_dict()
@@ -80,9 +90,15 @@ def read_s3dis_area(
     return data
 
 
-def read_s3dis_room(
-        room_dir, xyz=True, rgb=True, semantic=True, instance=False,
-        xyz_room=False, align=False, is_val=True, verbose=False):
+def read_s3dis_room(room_dir,
+                    xyz=True,
+                    rgb=True,
+                    semantic=True,
+                    instance=False,
+                    xyz_room=False,
+                    align=False,
+                    is_val=True,
+                    verbose=False):
     """Read all S3DIS object-wise annotations in a given room directory.
 
     :param room_dir: str
@@ -141,13 +157,11 @@ def read_s3dis_room(
         points = pd.read_csv(path, sep=' ', header=None).values
 
         if xyz:
-            xyz_list.append(
-                np.ascontiguousarray(points[:, 0:3], dtype='float32'))
+            xyz_list.append(np.ascontiguousarray(points[:, 0:3], dtype='float32'))
 
         if rgb:
             try:
-                rgb_list.append(
-                    np.ascontiguousarray(points[:, 3:6], dtype='uint8'))
+                rgb_list.append(np.ascontiguousarray(points[:, 3:6], dtype='uint8'))
             except ValueError:
                 rgb_list.append(np.zeros((points.shape[0], 3), dtype='uint8'))
                 log.warning(f"WARN - corrupted rgb data for file {path}")
@@ -170,17 +184,15 @@ def read_s3dis_room(
 
     # Add is_val attribute if need be
     if is_val:
-        data.is_val = torch.ones(data.num_nodes, dtype=torch.bool) * (
-                osp.basename(room_dir) in VALIDATION_ROOMS)
+        data.is_val = torch.ones(data.num_nodes, dtype=torch.bool) * (osp.basename(room_dir) in VALIDATION_ROOMS)
 
     # Exit here if canonical orientations are not needed
     if not xyz_room and not align:
         return data
 
     if instance:
-        raise NotImplementedError(
-            "If you are using bbox for detection, need to implement bbox "
-            "alignment here first...")
+        raise NotImplementedError("If you are using bbox for detection, need to implement bbox "
+                                  "alignment here first...")
 
     # Recover the canonical rotation angle for the room at hand. NB:
     # this assumes the raw files are stored in the S3DIS structure:
@@ -193,8 +205,7 @@ def read_s3dis_room(
     area = osp.basename(osp.dirname(room_dir))
     room_name = osp.basename(room_dir)
     alignment_file = osp.join(area_dir, f'{area}_alignmentAngle.txt')
-    alignments = pd.read_csv(
-        alignment_file, sep=' ', header=None, skiprows=2).values
+    alignments = pd.read_csv(alignment_file, sep=' ', header=None, skiprows=2).values
     angle = float(alignments[np.where(alignments[:, 0] == room_name), 1])
 
     # Matrix to rotate the room to its canonical orientation
@@ -285,28 +296,26 @@ class sp_S3DIS(SuperpointBase):
             `{'train': [...]}`
         """
 
-        return {
-            'train': [f'Area_{i}' for i in range(1, 7)]}
+        return {'train': [f'Area_{i}' for i in range(1, 7)]}
 
     def download_dataset(self):
         """Download the S3DIS dataset.
         """
         # Manually download the dataset
         if not osp.exists(osp.join(self.root, self._zip_name)):
-            log.error(
-                f"\nS3DIS does not support automatic download.\n"
-                f"Please, register yourself by filling up the form at "
-                f"{self._form_url}\n"
-                f"From there, manually download the non-aligned rooms"
-                f"'{self._zip_name}' into your '{self.root}/' directory and "
-                f"re-run.\n"
-                f"The dataset will automatically be unzipped into the "
-                f"following structure:\n"
-                f"{self.raw_file_structure}\n"
-                f"⛔ Make sure you DO NOT download the "
-                f"'{self._aligned_zip_name}' version, which does not contain "
-                f"the required `Area_{{i_area:1>6}}_alignmentAngle.txt` files."
-                f"\n")
+            log.error(f"\nS3DIS does not support automatic download.\n"
+                      f"Please, register yourself by filling up the form at "
+                      f"{self._form_url}\n"
+                      f"From there, manually download the non-aligned rooms"
+                      f"'{self._zip_name}' into your '{self.root}/' directory and "
+                      f"re-run.\n"
+                      f"The dataset will automatically be unzipped into the "
+                      f"following structure:\n"
+                      f"{self.raw_file_structure}\n"
+                      f"⛔ Make sure you DO NOT download the "
+                      f"'{self._aligned_zip_name}' version, which does not contain "
+                      f"the required `Area_{{i_area:1>6}}_alignmentAngle.txt` files."
+                      f"\n")
             sys.exit(1)
 
         # Unzip the file and rename it into the `root/raw/` directory. This
@@ -319,9 +328,15 @@ class sp_S3DIS(SuperpointBase):
         """Read a single raw cloud and return a Data object, ready to
         be passed to `self.pre_transform`.
         """
-        return read_s3dis_area(
-            raw_cloud_path, xyz=True, rgb=True, semantic=True, instance=False,
-            xyz_room=True, align=False, is_val=False, verbose=False)
+        return read_s3dis_area(raw_cloud_path,
+                               xyz=True,
+                               rgb=True,
+                               semantic=True,
+                               instance=False,
+                               xyz_room=True,
+                               align=False,
+                               is_val=False,
+                               verbose=False)
 
     @property
     def raw_file_structure(self):
@@ -338,8 +353,7 @@ class sp_S3DIS(SuperpointBase):
     def raw_file_names(self):
         """The file paths to find in order to skip the download."""
         area_folders = super().raw_file_names
-        alignment_files = [
-            osp.join(a, f"{a}_alignmentAngle.txt") for a in area_folders]
+        alignment_files = [osp.join(a, f"{a}_alignmentAngle.txt") for a in area_folders]
         return area_folders + alignment_files
 
     def id_to_relative_raw_path(self, id):

@@ -2,7 +2,6 @@ import pyrootutils
 from hydra import initialize, compose
 from hydra.core.global_hydra import GlobalHydra
 
-
 __all__ = ['init_config']
 
 

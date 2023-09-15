@@ -2,12 +2,11 @@ import torch
 import numpy as np
 from numba import njit
 
-
 __all__ = [
-    'tensor_idx', 'is_sorted', 'has_duplicates', 'is_dense', 'is_permutation',
-    'arange_interleave', 'print_tensor_info', 'cast_to_optimal_integer_type',
-    'cast_numpyfy', 'numpyfy', 'torchify', 'torch_to_numpy', 'fast_randperm',
-    'fast_zeros', 'fast_repeat', 'string_to_dtype']
+    'tensor_idx', 'is_sorted', 'has_duplicates', 'is_dense', 'is_permutation', 'arange_interleave', 'print_tensor_info',
+    'cast_to_optimal_integer_type', 'cast_numpyfy', 'numpyfy', 'torchify', 'torch_to_numpy', 'fast_randperm',
+    'fast_zeros', 'fast_repeat', 'string_to_dtype'
+]
 
 
 def tensor_idx(idx, device=None):

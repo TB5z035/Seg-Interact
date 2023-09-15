@@ -16,6 +16,7 @@ def init_spconfig(config_name: str, overrides=[]):
         sp_cfg = compose(config_name=config_name, overrides=overrides)
     return sp_cfg
 
+
 def get_args():
     parser = argparse.ArgumentParser()
 
@@ -83,18 +84,18 @@ def get_args():
                                help='YAML config file specifying default arguments')
 
     config_parser.add_argument('-s',
-                                '--spconfig',
-                                default=None,
-                                type=str,
-                                help='YAML config file specifying superpoint arguments')
-    
+                               '--spconfig',
+                               default=None,
+                               type=str,
+                               help='YAML config file specifying superpoint arguments')
+
     args_config, remaining = config_parser.parse_known_args()
     assert args_config.config is not None, 'Config file must be specified'
 
     with open(args_config.config, 'r') as f:
         cfg = yaml.safe_load(f)
         parser.set_defaults(**cfg)
-    
+
     if args_config.spconfig is not None:
         sp_cfg = init_spconfig(config_name=osp.split(args_config.spconfig)[1])
         parser.set_defaults(**sp_cfg)
@@ -123,7 +124,7 @@ def get_args():
 
     args_text = yaml.safe_dump(args_dict, default_flow_style=False)
     del args_dict
-    
+
     return args, args_text
 
 

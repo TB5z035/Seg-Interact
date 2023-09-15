@@ -211,7 +211,6 @@ class ScannetDataset(Dataset):
         self.split = split
         self.transform = parse_transform(transform)
         self._load_scene_ids(split)
-        
 
     def _load_scene_ids(self, split):
         """
@@ -523,7 +522,7 @@ class sp_scannet(SuperpointBase):
                 if params is None:
                     continue
                 pre_transform = instantiate_transforms(params)
-        
+
         sp_cfg_dict = sp_cfg.__dict__
         sp_cfg_dict.pop('data_dir', None)
         sp_cfg_dict.pop('pre_transform', None)
@@ -535,7 +534,6 @@ class sp_scannet(SuperpointBase):
                                 save_processed_root=sp_cfg.save_processed_root,
                                 ignore_label=sp_cfg.ignore_label,
                                 **sp_cfg_dict)
-
 
     @property
     def dataset_name(self):
@@ -549,7 +547,7 @@ class sp_scannet(SuperpointBase):
         indicated as `-1` in the dataset labels.
         """
         return ScanNet_NUM_CLASSES
-    
+
     @property
     def class_names(self):
         """List of string names for dataset classes. This list may be
@@ -573,14 +571,14 @@ class sp_scannet(SuperpointBase):
         """
         scans_paths = [osp.join(self.root, 'scans'), osp.join(self.root, 'scans_test')]
         all_scans = [os.listdir(p) for p in scans_paths]
-        return {
-            'scans': all_scans[0], 'scans_test': all_scans[1]}
-    
+        return {'scans': all_scans[0], 'scans_test': all_scans[1]}
+
     def download_dataset(self):
         """
         Check for extracted ScanNet dataset's existence.
         """
-        assert len(os.listdir(osp.join(self.root, 'scans'))) != 0, f'No files in ScanNet at {osp.join(self.root, "scans")}'
+        assert len(os.listdir(osp.join(self.root,
+                                       'scans'))) != 0, f'No files in ScanNet at {osp.join(self.root, "scans")}'
 
     @property
     def raw_file_structure(self):
@@ -606,18 +604,32 @@ class sp_scannet(SuperpointBase):
         cloud.
         """
         return self.id_to_base_id(id)
-    
+
     def read_single_raw_cloud(self, raw_cloud_path):
         """Read a single raw cloud and return a Data object, ready to
         be passed to `self.pre_transform`.
         """
-        return self.read_scannet_scene(
-            raw_cloud_path, xyz=True, rgb=True, semantic=True, instance=False,
-            xyz_room=True, align=False, is_val=False, verbose=False)
-    
-    def read_scannet_scene(
-        self, scene_dir, xyz=True, rgb=True, semantic=True, instance=False,
-        xyz_room=False, align=False, is_val=False, verbose=False, processes=-1):
+        return self.read_scannet_scene(raw_cloud_path,
+                                       xyz=True,
+                                       rgb=True,
+                                       semantic=True,
+                                       instance=False,
+                                       xyz_room=True,
+                                       align=False,
+                                       is_val=False,
+                                       verbose=False)
+
+    def read_scannet_scene(self,
+                           scene_dir,
+                           xyz=True,
+                           rgb=True,
+                           semantic=True,
+                           instance=False,
+                           xyz_room=False,
+                           align=False,
+                           is_val=False,
+                           verbose=False,
+                           processes=-1):
         """Read all ScanNet scenes
 
         :param area_dir: str
@@ -652,10 +664,11 @@ class sp_scannet(SuperpointBase):
         # Read all rooms in the Area and concatenate point clouds in a Batch
         assert instance == False, 'does not support instance=True'
         processes = available_cpu_count() if processes < 1 else processes
-        
+
         coords, colors, _, labels = self._load_ply(scene_path=scene_dir)
         colors = np.delete(colors, 3, axis=1)
-        coords, colors, labels = torch.from_numpy(np.float32(coords)), torch.from_numpy(np.uint8(colors)), torch.from_numpy(np.int64(labels))
+        coords, colors, labels = torch.from_numpy(np.float32(coords)), torch.from_numpy(
+            np.uint8(colors)), torch.from_numpy(np.int64(labels))
         colors = to_float_rgb(colors)
         batch = Batch.from_data_list([Data(pos=coords, rgb=colors, y=labels, o=None)])
 
@@ -666,11 +679,11 @@ class sp_scannet(SuperpointBase):
         data = Data(**data_dict)
 
         return data
-    
+
     def __len__(self):
         """Number of clouds in the dataset."""
         return len(self.cloud_ids)
-    
+
     def __getitem__(self, idx):
         """Load a preprocessed NAG from disk and apply `self.transform`
         if any. Optionally, one may pass a tuple (idx, bool) where the
@@ -691,10 +704,7 @@ class sp_scannet(SuperpointBase):
             return self.in_memory_data[idx]
 
         # Read the NAG from HDD
-        nag = NAG.load(
-            self.processed_paths[idx],
-            keys_low=self.point_load_keys,
-            keys=self.segment_load_keys)
+        nag = NAG.load(self.processed_paths[idx], keys_low=self.point_load_keys, keys=self.segment_load_keys)
 
         # Apply transforms
         nag = nag if self.transform is None else self.transform(nag)
@@ -708,7 +718,7 @@ class superpoint_scannt(FastLoad):
     def __init__(self, sp_cls: object, **kwargs):
         self.sp_cls = sp_cls
         super().__init__(**kwargs)
-    
+
     def _collate_fn(self, batch):
         inputs, labels, extras = list(zip(*batch))
         coords, colors = list(zip(*inputs))
@@ -718,7 +728,7 @@ class superpoint_scannt(FastLoad):
                                  for extra_idx in range(len(extras))
                                  for _ in range(len(labels[extra_idx]))) if key == 'scene_id' else tuple(
                                      [extra[key] for extra in extras])
-            
+
         indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
         bcoords = torch.cat((indices, torch.cat(coords, 0)), -1)
         bcolors = torch.cat(colors, 0)
@@ -728,14 +738,52 @@ class superpoint_scannt(FastLoad):
 
     def __getitem__(self, index) -> dict:
         scene_id = self.scene_ids[index]
-        sp_scene_index =  self.sp_cls.cloud_ids.index(scene_id)
+        sp_scene_index = self.sp_cls.cloud_ids.index(scene_id)
         nag = self.sp_cls[sp_scene_index]
 
         coords, colors, labels = nag[0].pos, nag[0].rgb, nag[0].y.argmax(1)
+        mcoords, mcolors, mlabels, remain_super_indices, mask_super_indices, full_super_indices, mask_level, ratio = self.random_masking(
+            nag, coords, colors, labels)
         scene_path = self.sp_cls.processed_paths[sp_scene_index]
 
         coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
         colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
         labels = torch.from_numpy(labels.astype(np.int64)) if type(labels) != torch.Tensor else labels
+        mcoords = torch.from_numpy(mcoords) if type(mcoords) != torch.Tensor else mcoords
+        mcolors = torch.from_numpy(mcolors) if type(mcolors) != torch.Tensor else mcolors
+        mlabels = torch.from_numpy(mlabels.astype(np.int64)) if type(mlabels) != torch.Tensor else mlabels
+        mask_super_indices = torch.from_numpy(mask_super_indices) if type(
+            mask_super_indices) != torch.Tensor else mask_super_indices
+        remain_super_indices = torch.from_numpy(remain_super_indices) if type(
+            remain_super_indices) != torch.Tensor else remain_super_indices
+        full_super_indices = torch.from_numpy(full_super_indices) if type(
+            full_super_indices) != torch.Tensor else full_super_indices
 
-        return (coords, colors), labels, {'scene_id': scene_id}
+        return (mcoords, mcolors), mlabels, {
+            'scene_id': scene_id,
+            'full_coords': coords,
+            'full_colors': colors,
+            'full_labels': labels,
+            'full_super_indices': full_super_indices,
+            'remain_super_indices': remain_super_indices,
+            'mask_super_indices': mask_super_indices,
+            'mask_level': mask_level,
+            'mask_ratio': ratio
+        }
+
+    def random_masking(self, nag, coords, colors, labels, mask_level=1, ratio=0.6):
+        assert int(mask_level) in [1, 2, 3], f'selected masking level: {mask_level} is unsupported'
+        coords, colors, labels = coords.numpy(), colors.numpy(), labels.numpy()
+
+        level_num_points = nag.num_points
+        full_super_indices = nag.get_super_index(mask_level, 0).numpy()
+        mask_num = int(round(ratio * level_num_points[mask_level]))
+        mask_indices = np.random.choice(np.arange(level_num_points[mask_level]), mask_num, replace=False)
+        remain_super_indices = np.array([index for index in full_super_indices if index not in mask_indices])
+        mask_super_indices = np.array([index for index in full_super_indices if index in mask_indices])
+
+        mcoords = np.array([coords[i] for i in range(len(coords)) if full_super_indices[i] not in mask_indices])
+        mcolors = np.array([colors[i] for i in range(len(colors)) if full_super_indices[i] not in mask_indices])
+        mlabels = np.array([labels[i] for i in range(len(labels)) if full_super_indices[i] not in mask_indices])
+
+        return mcoords, mcolors, mlabels, remain_super_indices, mask_super_indices, full_super_indices, mask_level, ratio

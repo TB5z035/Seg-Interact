@@ -6,7 +6,6 @@ from ..sp_utils import tensor_idx, is_sorted, indices_to_pointers, \
     sizes_to_pointers
 from ..utils import sp_debug
 
-
 __all__ = ['CSRData', 'CSRBatch']
 
 
@@ -19,9 +18,7 @@ class CSRData:
         - A.get_batch_type() returns ABatch
     """
 
-    def __init__(
-            self, pointers: torch.LongTensor, *args, dense=False,
-            is_index_value=None):
+    def __init__(self, pointers: torch.LongTensor, *args, dense=False, is_index_value=None):
         """Initialize the pointers and values.
 
         Values are passed as args and stored in a list. They are
@@ -137,9 +134,7 @@ class CSRData:
         out.values = copy.copy(self.values)
         return out
 
-    def reindex_groups(
-            self, group_indices: torch.LongTensor, order=None,
-            num_groups=None):
+    def reindex_groups(self, group_indices: torch.LongTensor, order=None, num_groups=None):
         """Returns a copy of self with modified pointers to account for
         new groups. Affects the num_groups and the order of groups.
         Injects 0-length pointers where need be.
@@ -157,12 +152,10 @@ class CSRData:
         """
         if order is None:
             order = torch.argsort(group_indices)
-        csr_new = self[order].insert_empty_groups(
-            group_indices[order], num_groups=num_groups)
+        csr_new = self[order].insert_empty_groups(group_indices[order], num_groups=num_groups)
         return csr_new
 
-    def insert_empty_groups(
-            self, group_indices: torch.LongTensor, num_groups=None):
+    def insert_empty_groups(self, group_indices: torch.LongTensor, num_groups=None):
         """Method called when in-place reindexing groups.
 
         The group_indices are assumed to be sorted and group_indices[i]
@@ -183,20 +176,15 @@ class CSRData:
         else:
             num_groups = group_indices.max() + 1
 
-        starts = torch.cat([
-            torch.LongTensor([-1]).to(self.device),
-            group_indices.to(self.device)])
-        ends = torch.cat([
-            group_indices.to(self.device),
-            torch.LongTensor([num_groups]).to(self.device)])
+        starts = torch.cat([torch.LongTensor([-1]).to(self.device), group_indices.to(self.device)])
+        ends = torch.cat([group_indices.to(self.device), torch.LongTensor([num_groups]).to(self.device)])
         repeats = ends - starts
         self.pointers = self.pointers.repeat_interleave(repeats)
 
         return self
 
     @staticmethod
-    def index_select_pointers(
-            pointers: torch.LongTensor, indices: torch.LongTensor):
+    def index_select_pointers(pointers: torch.LongTensor, indices: torch.LongTensor):
         """Index selection of pointers.
 
         Returns a new pointer tensor with updated pointers, along with
@@ -209,7 +197,8 @@ class CSRData:
         # Create the new pointers
         pointers_new = torch.cat([
             torch.zeros(1, dtype=pointers.dtype, device=device),
-            torch.cumsum(pointers[indices + 1] - pointers[indices], 0)])
+            torch.cumsum(pointers[indices + 1] - pointers[indices], 0)
+        ])
 
         # Create the indexing tensor to select and order values.
         # Simply, we could have used a list of slices but we want to
@@ -217,8 +206,7 @@ class CSRData:
         # capabilities.
         sizes = pointers_new[1:] - pointers_new[:-1]
         val_idx = torch.arange(pointers_new[-1], device=device)
-        val_idx -= torch.arange(pointers_new[-1] + 1, device=device)[
-            pointers_new[:-1]].repeat_interleave(sizes)
+        val_idx -= torch.arange(pointers_new[-1] + 1, device=device)[pointers_new[:-1]].repeat_interleave(sizes)
         val_idx += pointers[indices].repeat_interleave(sizes).to(device)
 
         return pointers_new, val_idx
@@ -243,8 +231,7 @@ class CSRData:
 
         else:
             # Select the pointers and prepare the values indexing
-            pointers, val_idx = CSRData.index_select_pointers(
-                self.pointers, idx)
+            pointers, val_idx = CSRData.index_select_pointers(self.pointers, idx)
             out.pointers = pointers
             out.values = [v[val_idx] for v in self.values]
 
@@ -257,9 +244,7 @@ class CSRData:
         return self.num_groups
 
     def __repr__(self):
-        info = [
-            f"{key}={int(getattr(self, key))}"
-            for key in ['num_groups', 'num_items']]
+        info = [f"{key}={int(getattr(self, key))}" for key in ['num_groups', 'num_items']]
         info.append(f"device={self.device}")
         return f"{self.__class__.__name__}({', '.join(info)})"
 
@@ -310,8 +295,7 @@ class CSRBatch(CSRData):
         """Basic constructor for a CSRBatch. Batches are rather
         intended to be built using the from_csr_list() method.
         """
-        super(CSRBatch, self).__init__(
-            pointers, *args, dense=dense, is_index_value=is_index_value)
+        super(CSRBatch, self).__init__(pointers, *args, dense=dense, is_index_value=is_index_value)
         self.__sizes__ = None
 
     @property
@@ -364,14 +348,12 @@ class CSRBatch(CSRData):
         # Offsets are used to stack pointer indices and values
         # identified as "index" value by `is_index_value` without
         # losing the indexing information they carry.
-        offsets = torch.cumsum(torch.LongTensor(
-            [0] + [csr.num_items for csr in csr_list[:-1]]), dim=0).to(device)
+        offsets = torch.cumsum(torch.LongTensor([0] + [csr.num_items for csr in csr_list[:-1]]), dim=0).to(device)
 
         # Stack pointers
-        pointers = torch.cat((
-            torch.LongTensor([0]).to(device),
-            *[csr.pointers[1:] + offset
-              for csr, offset in zip(csr_list, offsets)]), dim=0)
+        pointers = torch.cat(
+            (torch.LongTensor([0]).to(device), *[csr.pointers[1:] + offset for csr, offset in zip(csr_list, offsets)]),
+            dim=0)
 
         # Stack values
         values = []
@@ -384,13 +366,9 @@ class CSRBatch(CSRData):
                 # For Clusters, this implies all point indices are
                 # assumed to be present in the Cluster.points. There can
                 # be no point with no cluster
-                offsets = torch.LongTensor(
-                    [0] + [
-                        v.max() + 1 if v.shape[0] > 0 else 0
-                        for v in val_list[:-1]])
+                offsets = torch.LongTensor([0] + [v.max() + 1 if v.shape[0] > 0 else 0 for v in val_list[:-1]])
                 cum_offsets = torch.cumsum(offsets, dim=0).to(device)
-                val = torch.cat([
-                    v + o for v, o in zip(val_list, cum_offsets)], dim=0)
+                val = torch.cat([v + o for v, o in zip(val_list, cum_offsets)], dim=0)
             else:
                 val = torch.cat(val_list, dim=0)
             values.append(val)
@@ -399,8 +377,7 @@ class CSRBatch(CSRData):
         # Default of CSRData is CSRBatch, but subclasses of CSRData
         # may define their own batch class inheriting from CSRBatch.
         batch_type = csr_type.get_batch_type()
-        batch = batch_type(
-            pointers, *values, dense=False, is_index_value=is_index_value)
+        batch = batch_type(pointers, *values, dense=False, is_index_value=is_index_value)
         batch.__sizes__ = torch.LongTensor([csr.num_groups for csr in csr_list])
         batch.__csr_type__ = csr_type
 
@@ -408,18 +385,17 @@ class CSRBatch(CSRData):
 
     def to_csr_list(self):
         if self.__sizes__ is None:
-            raise RuntimeError(
-                'Cannot reconstruct CSRData data list from batch because the '
-                'CSRBatch was not created using `CSRBatch.from_csr_list()`.')
+            raise RuntimeError('Cannot reconstruct CSRData data list from batch because the '
+                               'CSRBatch was not created using `CSRBatch.from_csr_list()`.')
 
         group_pointers = self.batch_pointers
         item_pointers = self.pointers[group_pointers]
 
         # Recover pointers and index offsets for each CSRData item
         pointers = [
-            self.pointers[group_pointers[i]:group_pointers[i + 1] + 1]
-            - item_pointers[i]
-            for i in range(self.num_batch_items)]
+            self.pointers[group_pointers[i]:group_pointers[i + 1] + 1] - item_pointers[i]
+            for i in range(self.num_batch_items)
+        ]
 
         # Recover the values for each CSRData item
         values = []
@@ -429,24 +405,20 @@ class CSRBatch(CSRData):
                 val = batch_value.to_csr_list()
             elif self.is_index_value[i]:
                 val = [
-                    batch_value[item_pointers[j]:item_pointers[j + 1]]
-                    - (batch_value[:item_pointers[j]].max() + 1 if j > 0 else 0)
-                    for j in range(self.num_batch_items)]
+                    batch_value[item_pointers[j]:item_pointers[j + 1]] -
+                    (batch_value[:item_pointers[j]].max() + 1 if j > 0 else 0) for j in range(self.num_batch_items)
+                ]
             else:
-                val = [batch_value[item_pointers[j]:item_pointers[j + 1]]
-                       for j in range(self.num_batch_items)]
+                val = [batch_value[item_pointers[j]:item_pointers[j + 1]] for j in range(self.num_batch_items)]
             values.append(val)
         values = [list(x) for x in zip(*values)]
 
         csr_list = [
-            self.__csr_type__(
-                j, *v, dense=False, is_index_value=self.is_index_value)
-            for j, v in zip(pointers, values)]
+            self.__csr_type__(j, *v, dense=False, is_index_value=self.is_index_value) for j, v in zip(pointers, values)
+        ]
 
         return csr_list
 
     def __repr__(self):
-        info = [f"{key}={getattr(self, key)}"
-                for key in [
-                    'num_batch_items', 'num_groups', 'num_items', 'device']]
+        info = [f"{key}={getattr(self, key)}" for key in ['num_batch_items', 'num_groups', 'num_items', 'device']]
         return f"{self.__class__.__name__}({', '.join(info)})"

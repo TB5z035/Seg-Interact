@@ -16,7 +16,6 @@ from .sp_transforms import NAGSelectByKey, NAGRemoveKeys, SampleXYTiling, \
     SampleRecursiveMainXYAxisTiling, instantiate_transforms
 from ..data import NAG
 
-
 DIR = os.path.dirname(os.path.realpath(__file__))
 log = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ def sp_init(cfg_dm, dataset_class: object):
             params = getattr(cfg_dm, key_name, None)
             if params is None:
                 continue
-            
+
             pre_transform = instantiate_transforms(params)
 
     data_dir = cfg_dm.data_dir
@@ -131,29 +130,28 @@ class SuperpointBase(InMemoryDataset):
         pre-applied to the in_memory data
     """
 
-    def __init__(
-            self,
-            root,
-            save_processed_root=None,
-            stage='train',
-            pre_transform=None,
-            ignore_label=-1,
-            save_y_to_csr=True,
-            save_pos_dtype=torch.float,
-            save_fp_dtype=torch.half,
-            xy_tiling=None,
-            pc_tiling=None,
-            val_mixed_in_train=False,
-            test_mixed_in_val=False,
-            custom_hash=None,
-            in_memory=False,
-            point_save_keys=None,
-            point_no_save_keys=None,
-            point_load_keys=None,
-            segment_save_keys=None,
-            segment_no_save_keys=None,
-            segment_load_keys=None,
-            **kwargs):
+    def __init__(self,
+                 root,
+                 save_processed_root=None,
+                 stage='train',
+                 pre_transform=None,
+                 ignore_label=-1,
+                 save_y_to_csr=True,
+                 save_pos_dtype=torch.float,
+                 save_fp_dtype=torch.half,
+                 xy_tiling=None,
+                 pc_tiling=None,
+                 val_mixed_in_train=False,
+                 test_mixed_in_val=False,
+                 custom_hash=None,
+                 in_memory=False,
+                 point_save_keys=None,
+                 point_no_save_keys=None,
+                 point_load_keys=None,
+                 segment_save_keys=None,
+                 segment_no_save_keys=None,
+                 segment_load_keys=None,
+                 **kwargs):
         # Set these attributes before calling parent `__init__` because
         # some attributes will be needed in parent `download` and
         # `process` methods
@@ -202,11 +200,9 @@ class SuperpointBase(InMemoryDataset):
         # Load the processed data, if the dataset must be in memory
         if self.in_memory:
             in_memory_data = [
-                NAG.load(
-                    self.processed_paths[i],
-                    keys_low=self.point_load_keys,
-                    keys=self.segment_load_keys)
-                for i in range(len(self))]
+                NAG.load(self.processed_paths[i], keys_low=self.point_load_keys, keys=self.segment_load_keys)
+                for i in range(len(self))
+            ]
             self._in_memory_data = in_memory_data
         else:
             self._in_memory_data = None
@@ -300,10 +296,10 @@ class SuperpointBase(InMemoryDataset):
         cloud.
         """
         return osp.join(self.id_to_base_id(id) + '.ply')
-    
+
     def id_to_base_id(self, id):
         return id
-    
+
     def download(self):
         self.download_warning()
         self.download_dataset()
@@ -316,9 +312,8 @@ class SuperpointBase(InMemoryDataset):
 
     def download_warning(self, interactive=False):
         # Warning message for the user about to download
-        log.info(
-            f"WARNING: You are about to download {self.__class__.__name__} "
-            f"data.")
+        log.info(f"WARNING: You are about to download {self.__class__.__name__} "
+                 f"data.")
         if self.raw_file_structure is not None:
             log.info("Files will be organized in the following structure:")
             log.info(self.raw_file_structure)
@@ -341,7 +336,7 @@ class SuperpointBase(InMemoryDataset):
         if self.pre_transform is None:
             return 'no_pre_transform'
         return hashlib.md5(_repr(self.pre_transform).encode()).hexdigest()
-    
+
     @property
     def processed_dir(self) -> str:
         if self.save_processed_root != None:
@@ -354,9 +349,7 @@ class SuperpointBase(InMemoryDataset):
         """The name of the files to find in the `self.processed_dir`
         folder in order to skip the processing
         """
-        return [
-            osp.join(self.stage, self.pre_transform_hash, f'{w}.h5')
-            for w in self.cloud_ids]
+        return [osp.join(self.stage, self.pre_transform_hash, f'{w}.h5') for w in self.cloud_ids]
 
     def processed_to_raw_path(self, processed_path):
         """Given a processed cloud path from `self.processed_paths`,
@@ -393,12 +386,11 @@ class SuperpointBase(InMemoryDataset):
         """
         f = osp.join(self.processed_dir, 'pre_filter.pt')
         if osp.exists(f) and torch.load(f) != _repr(self.pre_filter):
-            warnings.warn(
-                "The `pre_filter` argument differs from the one used in "
-                "the pre-processed version of this dataset. If you want to "
-                "make use of another pre-fitering technique, make sure to "
-                "delete '{self.processed_dir}' first")
-            
+            warnings.warn("The `pre_filter` argument differs from the one used in "
+                          "the pre-processed version of this dataset. If you want to "
+                          "make use of another pre-fitering technique, make sure to "
+                          "delete '{self.processed_dir}' first")
+
         if files_exist(self.processed_paths):  # pragma: no cover
             return
 
@@ -471,11 +463,7 @@ class SuperpointBase(InMemoryDataset):
             nag = NAGRemoveKeys(level=0, keys=self.segment_no_save_keys)(nag)
 
         # Save pre_transformed data to the processed dir/<path>
-        nag.save(
-            cloud_path,
-            y_to_csr=self.save_y_to_csr,
-            pos_dtype=self.save_pos_dtype,
-            fp_dtype=self.save_fp_dtype)
+        nag.save(cloud_path, y_to_csr=self.save_y_to_csr, pos_dtype=self.save_pos_dtype, fp_dtype=self.save_fp_dtype)
         del nag
 
     def read_single_raw_cloud(self, raw_cloud_path):
@@ -508,8 +496,7 @@ class SuperpointBase(InMemoryDataset):
             if self.in_memory:
                 y = self.in_memory_data[i][low].y
             else:
-                y = NAG.load(
-                    self.processed_paths[i], low=low, keys_low=['y'])[0].y
+                y = NAG.load(self.processed_paths[i], low=low, keys_low=['y'])[0].y
             counts += y.sum(dim=0)[:self.num_classes]
 
         # Compute the class weights. Optionally, a 'smooth' function may
@@ -548,10 +535,7 @@ class SuperpointBase(InMemoryDataset):
             return self.in_memory_data[idx]
 
         # Read the NAG from HDD
-        nag = NAG.load(
-            self.processed_paths[idx],
-            keys_low=self.point_load_keys,
-            keys=self.segment_load_keys)
+        nag = NAG.load(self.processed_paths[idx], keys_low=self.point_load_keys, keys=self.segment_load_keys)
 
         # Apply transforms
         nag = nag if self.transform is None else self.transform(nag)

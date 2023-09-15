@@ -8,7 +8,6 @@ from . import Transform
 from ...data import Data, Cluster, NAG
 from ...sp_utils.cpu import available_cpu_count
 
-
 dependencies_folder = '/data/discover-08/caiz/Seg-Interact/code'
 sys.path.append(dependencies_folder)
 sys.path.append(osp.join(dependencies_folder, 'sp_dependencies/grid_graph/python/bin'))
@@ -49,9 +48,14 @@ class CutPursuitPartition(Transform):
     _MAX_NUM_EGDES = 4294967295
     _NO_REPR = ['verbose', 'parallel']
 
-    def __init__(
-            self, regularization=5e-2, spatial_weight=1, cutoff=10,
-            parallel=True, iterations=10, k_adjacency=5, verbose=False):
+    def __init__(self,
+                 regularization=5e-2,
+                 spatial_weight=1,
+                 cutoff=10,
+                 parallel=True,
+                 iterations=10,
+                 k_adjacency=5,
+                 verbose=False):
         self.regularization = regularization
         self.spatial_weight = spatial_weight
         self.cutoff = cutoff
@@ -82,8 +86,8 @@ class CutPursuitPartition(Transform):
         # prepare the output as list of Data objects that will be stored in
         # a NAG structure
         num_threads = available_cpu_count() if self.parallel else 1
-        data.node_size = torch.ones(
-            data.num_nodes, device=data.device, dtype=torch.long)  # level-0 points all have the same importance
+        data.node_size = torch.ones(data.num_nodes, device=data.device,
+                                    dtype=torch.long)  # level-0 points all have the same importance
         data_list = [data]
         regularization = self.regularization
         if not isinstance(regularization, list):
@@ -99,13 +103,11 @@ class CutPursuitPartition(Transform):
         n_feat = data.x.shape[1] if data.x is not None else 0
 
         # Iteratively run the partition on the previous partition level
-        for level, (reg, cut, sw) in enumerate(zip(
-                regularization, cutoff, spatial_weight)):
+        for level, (reg, cut, sw) in enumerate(zip(regularization, cutoff, spatial_weight)):
 
             if self.verbose:
-                print(
-                    f'Launching partition level={level} reg={reg}, '
-                    f'cutoff={cut}')
+                print(f'Launching partition level={level} reg={reg}, '
+                      f'cutoff={cut}')
 
             # Recover the Data object on which we will run the partition
             d1 = data_list[level]
@@ -116,15 +118,14 @@ class CutPursuitPartition(Transform):
 
             # User warning if the number of edges exceeds uint32 limits
             if d1.edge_index.shape[1] > self._MAX_NUM_EGDES and self.verbose:
-                print(
-                    f"WARNING: number of edges {d1.edge_index.shape[1]} "
-                    f"exceeds the uint32 limit {self._MAX_NUM_EGDES}. Please"
-                    f"update the cut-pursuit source code to accept a larger "
-                    f"data type for `index_t`.")
+                print(f"WARNING: number of edges {d1.edge_index.shape[1]} "
+                      f"exceeds the uint32 limit {self._MAX_NUM_EGDES}. Please"
+                      f"update the cut-pursuit source code to accept a larger "
+                      f"data type for `index_t`.")
 
             # Convert edges to forward-star (or CSR) representation
-            source_csr, target, reindex = edge_list_to_forward_star(
-                d1.num_nodes, d1.edge_index.T.contiguous().cpu().numpy())
+            source_csr, target, reindex = edge_list_to_forward_star(d1.num_nodes,
+                                                                    d1.edge_index.T.contiguous().cpu().numpy())
             source_csr = source_csr.astype('uint32')
             target = target.astype('uint32')
             edge_weights = d1.edge_attr.cpu().numpy()[reindex] * reg \
@@ -142,13 +143,23 @@ class CutPursuitPartition(Transform):
             coor_weights[:n_dim] *= sw
 
             # Partition computation
-            super_index, x_c, cluster, edges, times = cp_kmpp_d0_dist(
-                1, x, source_csr, target, edge_weights=edge_weights,
-                vert_weights=node_size, coor_weights=coor_weights,
-                min_comp_weight=cut, cp_dif_tol=1e-2, cp_it_max=self.iterations,
-                split_damp_ratio=0.7, verbose=self.verbose,
-                max_num_threads=num_threads, balance_parallel_split=True,
-                compute_Time=True, compute_List=True, compute_Graph=True)
+            super_index, x_c, cluster, edges, times = cp_kmpp_d0_dist(1,
+                                                                      x,
+                                                                      source_csr,
+                                                                      target,
+                                                                      edge_weights=edge_weights,
+                                                                      vert_weights=node_size,
+                                                                      coor_weights=coor_weights,
+                                                                      min_comp_weight=cut,
+                                                                      cp_dif_tol=1e-2,
+                                                                      cp_it_max=self.iterations,
+                                                                      split_damp_ratio=0.7,
+                                                                      verbose=self.verbose,
+                                                                      max_num_threads=num_threads,
+                                                                      balance_parallel_split=True,
+                                                                      compute_Time=True,
+                                                                      compute_List=True,
+                                                                      compute_Graph=True)
 
             if self.verbose:
                 delta_t = (times[1:] - times[:-1]).round(2)
@@ -163,8 +174,7 @@ class CutPursuitPartition(Transform):
             # cluster-to-point indices in a CSR format
             size = torch.LongTensor([c.shape[0] for c in cluster])
             pointer = torch.cat([torch.LongTensor([0]), size.cumsum(dim=0)])
-            value = torch.cat([
-                torch.from_numpy(x.astype('int64')) for x in cluster])
+            value = torch.cat([torch.from_numpy(x.astype('int64')) for x in cluster])
             pos = torch.from_numpy(x_c[:n_dim].T) + pos_offset.cpu()
             x = torch.from_numpy(x_c[n_dim:].T)
             s = torch.arange(edges[0].shape[0] - 1).repeat_interleave(
@@ -173,11 +183,13 @@ class CutPursuitPartition(Transform):
             edge_index = torch.vstack((s, t))
             edge_attr = torch.from_numpy(edges[2] / reg)
             node_size = torch.from_numpy(node_size)
-            node_size_new = scatter_sum(
-                node_size.cuda(), super_index.cuda(), dim=0).cpu().long()
-            d2 = Data(
-                pos=pos, x=x, edge_index=edge_index, edge_attr=edge_attr,
-                sub=Cluster(pointer, value), node_size=node_size_new)
+            node_size_new = scatter_sum(node_size.cuda(), super_index.cuda(), dim=0).cpu().long()
+            d2 = Data(pos=pos,
+                      x=x,
+                      edge_index=edge_index,
+                      edge_attr=edge_attr,
+                      sub=Cluster(pointer, value),
+                      node_size=node_size_new)
 
             # Trim the graph
             d2 = d2.to_trimmed()
@@ -196,16 +208,14 @@ class CutPursuitPartition(Transform):
                 assert d1.y.dim() == 2, \
                     "Expected Data.y to hold `(num_nodes, num_classes)` " \
                     "histograms, not single labels"
-                d2.y = scatter_sum(
-                    d1.y.cuda(), d1.super_index.cuda(), dim=0).cpu()
+                d2.y = scatter_sum(d1.y.cuda(), d1.super_index.cuda(), dim=0).cpu()
                 torch.cuda.empty_cache()
 
             if 'pred' in d1.keys:
                 assert d1.pred.dim() == 2, \
                     "Expected Data.pred to hold `(num_nodes, num_classes)` " \
                     "histograms, not single labels"
-                d2.pred = scatter_sum(
-                    d1.pred.cuda(), d1.super_index.cuda(), dim=0).cpu()
+                d2.pred = scatter_sum(d1.pred.cuda(), d1.super_index.cuda(), dim=0).cpu()
                 torch.cuda.empty_cache()
 
             # Add the l+1-level Data object to data_list and update the
@@ -261,8 +271,7 @@ class GridPartition(Transform):
             super_index = i * (max(i.max(), j.max()) + 1) + j
             super_index = consecutive_cluster(super_index)[0]
             pos = scatter_mean(d.pos, super_index, dim=0)
-            cluster = Cluster(
-                super_index, torch.arange(d.num_nodes), dense=True)
+            cluster = Cluster(super_index, torch.arange(d.num_nodes), dense=True)
 
             # Update the super_index of the previous level and create
             # the Data object for the new level

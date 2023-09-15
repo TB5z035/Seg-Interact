@@ -1,7 +1,6 @@
 import multiprocessing
 from itertools import repeat
 
-
 __all__ = ['starmap_with_kwargs']
 
 
@@ -33,7 +32,6 @@ def starmap_with_kwargs(fn, args_iter, kwargs_iter, processes=4):
     out = []
     for i in args_iter:
         out.append(fn(i[0], kwargs_iter))
-
     '''try:
         # Apply fn in multiple processes
         with multiprocessing.get_context("spawn").Pool(processes=processes) as pool:
@@ -46,6 +44,7 @@ def starmap_with_kwargs(fn, args_iter, kwargs_iter, processes=4):
             out.append(fn(i[0], kwargs_iter))'''
 
     return out
+
 
 def apply_args_and_kwargs(fn, args, kwargs):
     return fn(*args, **kwargs)

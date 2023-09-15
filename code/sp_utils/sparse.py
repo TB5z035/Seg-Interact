@@ -4,10 +4,10 @@ from .tensor import is_dense, is_sorted, fast_repeat, tensor_idx, \
     arange_interleave, fast_randperm
 from ..utils import sp_debug
 
-
 __all__ = [
-    'indices_to_pointers', 'sizes_to_pointers', 'dense_to_csr', 'csr_to_dense',
-    'sparse_sort', 'sparse_sort_along_direction', 'sparse_sample']
+    'indices_to_pointers', 'sizes_to_pointers', 'dense_to_csr', 'csr_to_dense', 'sparse_sort',
+    'sparse_sort_along_direction', 'sparse_sample'
+]
 
 
 def indices_to_pointers(indices: torch.LongTensor):
@@ -26,7 +26,8 @@ def indices_to_pointers(indices: torch.LongTensor):
     pointers = torch.cat([
         torch.LongTensor([0]).to(device),
         torch.where(indices[1:] > indices[:-1])[0] + 1,
-        torch.LongTensor([indices.shape[0]]).to(device)])
+        torch.LongTensor([indices.shape[0]]).to(device)
+    ])
 
     return pointers, order
 
@@ -88,7 +89,7 @@ def sparse_sort(src, index, dim=0, descending=False, eps=1e-6):
     # grained src changes even with very large index values.
     f_src = src.double()
     f_min, f_max = f_src.min(dim)[0], f_src.max(dim)[0]
-    norm = (f_src - f_min)/(f_max - f_min + eps) + index.double()*(-1)**int(descending)
+    norm = (f_src - f_min) / (f_max - f_min + eps) + index.double() * (-1)**int(descending)
     perm = norm.argsort(dim=dim, descending=descending)
 
     return src[perm], perm

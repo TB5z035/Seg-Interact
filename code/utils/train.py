@@ -71,11 +71,10 @@ def train(local_rank=0, world_size=1, args=None):
     # inf_dataset = DATASETS[args.inf_dataset['name']](**args.inf_dataset['args'])
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
-    logger.info(
-        f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}")
+    logger.info(f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}")
     # logger.info(
     #     f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}\nInf dataset: {args.inf_dataset}")
-        
+
     # DataLoader
     if world_size > 1:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset,
@@ -97,8 +96,8 @@ def train(local_rank=0, world_size=1, args=None):
     #                             shuffle=False,
     #                             num_workers=args.val_num_workers,
     #                             collate_fn=val_dataset._collate_fn)
-    
-    for i,x in enumerate(train_dataloader):
+
+    for i, x in enumerate(train_dataloader):
         #print(x[0][0])
         exit()
 

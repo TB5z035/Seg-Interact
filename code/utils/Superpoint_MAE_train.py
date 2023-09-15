@@ -61,8 +61,7 @@ def train(local_rank=0, world_size=1, args=None):
 
     assert train_dataset.num_channel == val_dataset.num_channel
     assert train_dataset.num_train_classes == val_dataset.num_train_classes
-    logger.info(
-        f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}")
+    logger.info(f"Train dataset: {args.train_dataset}\nVal dataset: {args.val_dataset}")
 
     # DataLoader
     if world_size > 1:
@@ -73,35 +72,48 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         train_sampler = None
 
-    train_dataloader = DataLoader(train_dataset,
-                                  batch_size=args.train_batch_size,
-                                  shuffle=(train_sampler is None),
-                                  num_workers=args.train_num_workers,
-                                  sampler=train_sampler,
-                                  collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)
-    
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=args.train_batch_size,
+        shuffle=(train_sampler is None),
+        num_workers=args.train_num_workers,
+        sampler=train_sampler,
+        collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)
+
     val_dataloader = DataLoader(val_dataset,
                                 batch_size=args.val_batch_size,
                                 shuffle=False,
                                 num_workers=args.val_num_workers,
                                 collate_fn=val_dataset._collate_fn)
-    
-    for index, data in enumerate(val_dataloader):
-        '''
-        data[0]: (coords, colors)
-            coords: torch.tensor(N, 4) -> [(batch_index, x, y, z), ...]
-            colors: torch.tensor(N, 3) -> [(r, g, b), ...]
-        data[1]: labels
-            labels: torch.tensor(N, )
-        data[2]: extras -> {'scene_id': (N, )}
-        '''
-        
-        (coords, colors), labels, extras = data
-        scene_ids = extras['scene_id']
-
-    exit()
 
     logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}")
+
+    for index, data in enumerate(val_dataloader):
+        '''
+        batch_num = b
+
+        data[0]: (coords, colors, mask_super_indices)
+            mcoords: torch.tensor(b*n, 4) -> [(batch_index, x, y, z), ...]
+            mcolors: torch.tensor(b*n, 3) -> [(r, g, b), ...]
+            remain_super_indices: torch.tensor(b*n, ) -> [10,10,10,10,98,98,...]
+
+        data[1]: mlabels
+            mlabels: torch.tensor(b*n, )
+
+        data[2]: extras -> {'scene_id': tuple(b*N, ),
+                            'full_coords': tuple(torch.tensor(N, 4), ...)
+                            'full_colors': tuple(torch.tensor(N, 3), ...)
+                            'full_labels': tuple(torch.tensor(N, ), ...)
+                            'full_super_indices': tuple(torch.tensor(N, ), ...)
+                            'remain_super_indices': tuple(torch.tensor(n, ), ...)
+                            'mask_super_indices': tuple(torch.tensor(m, ), ...)
+                            'mask_level': tuple(int(1), ...),
+                            'mask_ratio': tuple(float(1), ...)}
+        N = n + m
+        '''
+
+        (mcoords, mcolors), mlabels, extras = data
+        exit()
 
     # Model
     network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes)

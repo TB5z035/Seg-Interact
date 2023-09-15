@@ -15,14 +15,13 @@ import os
 import os.path as osp
 import re
 
-
 ########################################################################
 #                     Targets and compile options                      #
 ########################################################################
 
 # Keep track of directories of interest
 WORK_DIR = osp.realpath(os.curdir)
-PROJECT_DIR = '/data/discover-08/caiz/Seg-Interact/code' #osp.realpath(osp.dirname(osp.dirname(__file__)))
+PROJECT_DIR = '/data/discover-08/caiz/Seg-Interact/code'  #osp.realpath(osp.dirname(osp.dirname(__file__)))
 DEPENDENCIES_DIR = osp.join(PROJECT_DIR, 'sp_dependencies')
 
 # Find the Numpy headers
@@ -39,12 +38,13 @@ elif os.name == 'posix':  # linux
 else:
     raise NotImplementedError('OS not supported yet.')
 
-
 ########################################################################
 #                         Auxiliary functions                          #
 ########################################################################
 
+
 class build_class(build):
+
     def initialize_options(self):
         build.initialize_options(self)
         self.build_lib = "bin"
@@ -76,9 +76,7 @@ purge("bin/", name)
 mod = Extension(
     name,
     # list source files
-    ["cpython/grid_graph_cpy.cpp",
-     "../src/edge_list_to_forward_star.cpp",
-     "../src/grid_to_graph.cpp"],
+    ["cpython/grid_graph_cpy.cpp", "../src/edge_list_to_forward_star.cpp", "../src/grid_to_graph.cpp"],
     include_dirs=include_dirs,
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args)
@@ -136,9 +134,10 @@ with open(filepath, 'w') as f:
 mod = Extension(
     name,
     # list source files
-    ["cpython/cp_kmpp_d0_dist_cpy.cpp", "../src/cp_kmpp_d0_dist.cpp",
-     "../src/cut_pursuit_d0.cpp", "../src/cut_pursuit.cpp",
-     "../src/maxflow.cpp"],
+    [
+        "cpython/cp_kmpp_d0_dist_cpy.cpp", "../src/cp_kmpp_d0_dist.cpp", "../src/cut_pursuit_d0.cpp",
+        "../src/cut_pursuit.cpp", "../src/maxflow.cpp"
+    ],
     include_dirs=include_dirs,
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args)

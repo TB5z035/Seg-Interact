@@ -4,12 +4,11 @@ from ...data import Data, NAG, CSRData
 from ...sp_utils import tensor_idx, to_float_rgb, to_byte_rgb, dropout, \
     sanitize_keys
 
-
 __all__ = [
-    'DataToNAG', 'NAGToData', 'Cast', 'NAGCast', 'RemoveKeys', 'NAGRemoveKeys',
-    'AddKeysTo', 'NAGAddKeysTo', 'NAGSelectByKey', 'SelectColumns',
-    'NAGSelectColumns', 'DropoutColumns', 'NAGDropoutColumns', 'DropoutRows',
-    'NAGDropoutRows', 'NAGJitterKey']
+    'DataToNAG', 'NAGToData', 'Cast', 'NAGCast', 'RemoveKeys', 'NAGRemoveKeys', 'AddKeysTo', 'NAGAddKeysTo',
+    'NAGSelectByKey', 'SelectColumns', 'NAGSelectColumns', 'DropoutColumns', 'NAGDropoutColumns', 'DropoutRows',
+    'NAGDropoutRows', 'NAGJitterKey'
+]
 
 
 class DataToNAG(Transform):
@@ -39,11 +38,7 @@ class Cast(Transform):
     decide whether it should be cast to 'fp_dtype' or 'uint8'.
     """
 
-    def __init__(
-            self,
-            fp_dtype=torch.float,
-            int_dtype=torch.long,
-            rgb_to_float=True):
+    def __init__(self, fp_dtype=torch.float, int_dtype=torch.long, rgb_to_float=True):
         self.fp_dtype = fp_dtype
         self.int_dtype = int_dtype
         self.rgb_to_float = rgb_to_float
@@ -90,10 +85,7 @@ class NAGCast(Cast):
     _OUT_TYPE = NAG
 
     def _process(self, nag):
-        transform = Cast(
-            fp_dtype=self.fp_dtype,
-            int_dtype=self.int_dtype,
-            rgb_to_float=self.rgb_to_float)
+        transform = Cast(fp_dtype=self.fp_dtype, int_dtype=self.int_dtype, rgb_to_float=self.rgb_to_float)
 
         for i_level in range(nag.num_levels):
             nag._list[i_level] = transform(nag[i_level])
@@ -224,9 +216,8 @@ class AddKeysTo(Transform):
 
         # Make sure shapes match
         if x.shape[0] != feat.shape[0]:
-            raise Exception(
-                f"The tensors '{to}' and '{key}' can't be concatenated, "
-                f"'{to}': {x.shape[0]}, '{key}': {feat.shape[0]}")
+            raise Exception(f"The tensors '{to}' and '{key}' can't be concatenated, "
+                            f"'{to}': {x.shape[0]}, '{key}': {feat.shape[0]}")
 
         # Concatenate x and feat
         if x.dim() == 1:
@@ -269,9 +260,7 @@ class NAGAddKeysTo(Transform):
     _OUT_TYPE = NAG
     _NO_REPR = ['strict']
 
-    def __init__(
-            self, level='all', keys=None, to='x', strict=True,
-            delete_after=True):
+    def __init__(self, level='all', keys=None, to='x', strict=True, delete_after=True):
         self.level = level
         self.keys = [keys] if isinstance(keys, str) else keys
         self.to = to
@@ -295,10 +284,8 @@ class NAGAddKeysTo(Transform):
             raise ValueError(f'Unsupported level={self.level}')
 
         transforms = [
-            AddKeysTo(
-                keys=k, to=self.to, strict=self.strict,
-                delete_after=self.delete_after)
-            for k in level_keys]
+            AddKeysTo(keys=k, to=self.to, strict=self.strict, delete_after=self.delete_after) for k in level_keys
+        ]
 
         for i_level in range(nag.num_levels):
             nag._list[i_level] = transforms[i_level](nag._list[i_level])
@@ -330,9 +317,7 @@ class NAGSelectByKey(Transform):
     _OUT_TYPE = NAG
     _NO_REPR = ['strict']
 
-    def __init__(
-            self, key=None, level=0, negation=False, strict=True,
-            delete_after=True):
+    def __init__(self, key=None, level=0, negation=False, strict=True, delete_after=True):
         assert key is not None
         self.key = key
         self.level = level
@@ -344,9 +329,8 @@ class NAGSelectByKey(Transform):
         # Ensure the key exists
         if self.key not in nag[self.level].keys:
             if self.strict:
-                raise ValueError(
-                    f'Input NAG does not have `{self.key}` attribute at '
-                    f'level `{self.level}`')
+                raise ValueError(f'Input NAG does not have `{self.key}` attribute at '
+                                 f'level `{self.level}`')
             return nag
 
         # Read the mask
@@ -356,9 +340,8 @@ class NAGSelectByKey(Transform):
         dtype = mask.dtype
         if dtype != torch.bool:
             if self.strict:
-                raise ValueError(
-                    f'`{self.key}` attribute has dtype={dtype} but '
-                    f'dtype=torch.bool was expected')
+                raise ValueError(f'`{self.key}` attribute has dtype={dtype} but '
+                                 f'dtype=torch.bool was expected')
             return nag
 
         # Ensure the mask size matches
@@ -366,9 +349,8 @@ class NAGSelectByKey(Transform):
         actual_size = mask.shape
         if expected_size != actual_size:
             if self.strict:
-                raise ValueError(
-                    f'`{self.key}` attribute has shape={actual_size} but '
-                    f'shape={expected_size} was expected')
+                raise ValueError(f'`{self.key}` attribute has shape={actual_size} but '
+                                 f'shape={expected_size} was expected')
             return nag
 
         # Call NAG.select using the mask on the `level` nodes
@@ -485,9 +467,7 @@ class DropoutColumns(Transform):
             return data
 
         # Apply dropout on each column, inplace
-        data[self.key] = dropout(
-            data[self.key], p=self.p, dim=1, inplace=self.inplace,
-            to_mean=self.to_mean)
+        data[self.key] = dropout(data[self.key], p=self.p, dim=1, inplace=self.inplace, to_mean=self.to_mean)
 
         return data
 
@@ -514,8 +494,7 @@ class NAGDropoutColumns(Transform):
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
 
-    def __init__(
-            self, level='all', p=0.5, key=None, inplace=False, to_mean=False):
+    def __init__(self, level='all', p=0.5, key=None, inplace=False, to_mean=False):
         assert isinstance(level, int) or level == 'all' or level.endswith('-') \
                or level.endswith('+')
         self.level = level
@@ -546,9 +525,11 @@ class NAGDropoutColumns(Transform):
                 continue
 
             # Apply dropout on each column, inplace
-            nag[i_level][self.key] = dropout(
-                nag[i_level][self.key], p=self.p, dim=1, inplace=self.inplace,
-                to_mean=self.to_mean)
+            nag[i_level][self.key] = dropout(nag[i_level][self.key],
+                                             p=self.p,
+                                             dim=1,
+                                             inplace=self.inplace,
+                                             to_mean=self.to_mean)
 
         return nag
 
@@ -575,7 +556,6 @@ class DropoutRows(Transform):
         self.inplace = inplace
         self.to_mean = to_mean
 
-
     def _process(self, data):
         # Skip dropout if p <= 0
         if self.p <= 0:
@@ -586,9 +566,7 @@ class DropoutRows(Transform):
             return data
 
         # Apply dropout on each column, inplace
-        data[self.key] = dropout(
-            data[self.key], p=self.p, dim=0, inplace=self.inplace,
-            to_mean=self.to_mean)
+        data[self.key] = dropout(data[self.key], p=self.p, dim=0, inplace=self.inplace, to_mean=self.to_mean)
 
         return data
 
@@ -615,8 +593,7 @@ class NAGDropoutRows(Transform):
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
 
-    def __init__(
-            self, level='all', p=0.5, key=None, inplace=False, to_mean=False):
+    def __init__(self, level='all', p=0.5, key=None, inplace=False, to_mean=False):
         assert isinstance(level, int) or level == 'all' or level.endswith('-') \
                or level.endswith('+')
         self.level = level
@@ -647,9 +624,11 @@ class NAGDropoutRows(Transform):
                 continue
 
             # Apply dropout on each column, inplace
-            nag[i_level][self.key] = dropout(
-                nag[i_level][self.key], p=self.p, dim=0, inplace=self.inplace,
-                to_mean=self.to_mean)
+            nag[i_level][self.key] = dropout(nag[i_level][self.key],
+                                             p=self.p,
+                                             dim=0,
+                                             inplace=self.inplace,
+                                             to_mean=self.to_mean)
 
         return nag
 
@@ -702,21 +681,18 @@ class NAGJitterKey(Transform):
 
             if getattr(nag[i_level], self.key, None) is None:
                 if self.strict:
-                    raise ValueError(
-                        f"Input data does not have any '{self.key} attribute")
+                    raise ValueError(f"Input data does not have any '{self.key} attribute")
                 else:
                     continue
 
             if trunc[i_level] > 0:
-                noise = torch.nn.init.trunc_normal_(
-                    torch.empty_like(nag[i_level][self.key]),
-                    mean=0.,
-                    std=sigma[i_level],
-                    a=-trunc[i_level],
-                    b=trunc[i_level])
+                noise = torch.nn.init.trunc_normal_(torch.empty_like(nag[i_level][self.key]),
+                                                    mean=0.,
+                                                    std=sigma[i_level],
+                                                    a=-trunc[i_level],
+                                                    b=trunc[i_level])
             else:
-                noise = torch.randn_like(
-                    nag[i_level][self.key]) * sigma[i_level]
+                noise = torch.randn_like(nag[i_level][self.key]) * sigma[i_level]
 
             nag[i_level][self.key] += noise
 

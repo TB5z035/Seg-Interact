@@ -6,7 +6,6 @@ from .csr import CSRData, CSRBatch
 from ..sp_utils import has_duplicates, tensor_idx, \
     save_tensor, load_tensor
 
-
 __all__ = ['Cluster', 'ClusterBatch']
 
 
@@ -16,8 +15,7 @@ class Cluster(CSRData):
     """
 
     def __init__(self, pointers, points, dense=False, **kwargs):
-        super().__init__(
-            pointers, points, dense=dense, is_index_value=[True])
+        super().__init__(pointers, points, dense=dense, is_index_value=[True])
 
     @staticmethod
     def get_batch_type():
@@ -110,9 +108,7 @@ class Cluster(CSRData):
         assert not has_duplicates(self.points)
 
     def __repr__(self):
-        info = [
-            f"{key}={getattr(self, key)}"
-            for key in ['num_clusters', 'num_points', 'device']]
+        info = [f"{key}={getattr(self, key)}" for key in ['num_clusters', 'num_points', 'device']]
         return f"{self.__class__.__name__}({', '.join(info)})"
 
     def save(self, f, fp_dtype=torch.float):
@@ -157,8 +153,7 @@ class Cluster(CSRData):
 
         if not isinstance(f, (h5py.File, h5py.Group)):
             with h5py.File(f, 'r') as file:
-                out = Cluster.load(
-                    file, idx=idx, update_sub=update_sub, verbose=verbose)
+                out = Cluster.load(file, idx=idx, update_sub=update_sub, verbose=verbose)
             return out
 
         assert all(k in f.keys() for k in KEYS)
@@ -189,9 +184,7 @@ class Cluster(CSRData):
 
         # Create the new pointers
         start = time()
-        pointers = torch.cat([
-            torch.zeros(1, dtype=ptr_start.dtype),
-            torch.cumsum(ptr_end - ptr_start, 0)])
+        pointers = torch.cat([torch.zeros(1, dtype=ptr_start.dtype), torch.cumsum(ptr_end - ptr_start, 0)])
         if verbose:
             print(f'Cluster.load new pointers   : {time() - start:0.5f}s')
 
@@ -202,8 +195,7 @@ class Cluster(CSRData):
         start = time()
         sizes = pointers[1:] - pointers[:-1]
         val_idx = torch.arange(pointers[-1])
-        val_idx -= torch.arange(pointers[-1] + 1)[
-            pointers[:-1]].repeat_interleave(sizes)
+        val_idx -= torch.arange(pointers[-1] + 1)[pointers[:-1]].repeat_interleave(sizes)
         val_idx += ptr_start.repeat_interleave(sizes)
         if verbose:
             print(f'Cluster.load val_idx        : {time() - start:0.5f}s')

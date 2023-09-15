@@ -8,4 +8,6 @@ import argparse
 import os.path as osp
 import yaml
 
-print(torch.ones(3))
+a = np.array([1, 2, 3])
+a.pop(3)
+print(a)

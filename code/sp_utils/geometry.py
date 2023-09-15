@@ -1,9 +1,7 @@
 import torch
 import numpy as np
 
-
-__all__ = [
-    'cross_product_matrix', 'rodrigues_rotation_matrix', 'base_vectors_3d']
+__all__ = ['cross_product_matrix', 'rodrigues_rotation_matrix', 'base_vectors_3d']
 
 
 def cross_product_matrix(k):
@@ -11,8 +9,7 @@ def cross_product_matrix(k):
 
     Credit: https://github.com/torch-points3d/torch-points3d
     """
-    return torch.tensor(
-        [[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]], device=k.device)
+    return torch.tensor([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]], device=k.device)
 
 
 def rodrigues_rotation_matrix(axis, theta_degrees):
@@ -44,8 +41,7 @@ def base_vectors_3d(x):
     a = x
 
     # If x is 0 vector (norm=0), arbitrarily put a to (1, 0, 0)
-    a[torch.where(a.norm(dim=1) == 0)[0]] = torch.tensor(
-        [[1, 0, 0]], dtype=x.dtype, device=x.device)
+    a[torch.where(a.norm(dim=1) == 0)[0]] = torch.tensor([[1, 0, 0]], dtype=x.dtype, device=x.device)
 
     # Safely normalize a
     a = a / a.norm(dim=1).view(-1, 1)
@@ -56,8 +52,7 @@ def base_vectors_3d(x):
     # In the same fashion as when building a, the second base vector
     # may be 0 by construction (ie a is of type (v, v, v)). So we need
     # to deal with this edge case by setting
-    b[torch.where(b.norm(dim=1) == 0)[0]] = torch.tensor(
-        [[2, 1, -1]], dtype=x.dtype, device=x.device)
+    b[torch.where(b.norm(dim=1) == 0)[0]] = torch.tensor([[2, 1, -1]], dtype=x.dtype, device=x.device)
 
     # Safely normalize b
     b /= b.norm(dim=1).view(-1, 1)

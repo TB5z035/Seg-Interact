@@ -3,10 +3,7 @@ from . import Transform
 from ...data import NAG
 from ...sp_utils.geometry import rodrigues_rotation_matrix
 
-
-__all__ = [
-    'CenterPosition', 'RandomTiltAndRotate', 'RandomAnisotropicScale',
-    'RandomAxisFlip']
+__all__ = ['CenterPosition', 'RandomTiltAndRotate', 'RandomAnisotropicScale', 'RandomAxisFlip']
 
 
 class CenterPosition(Transform):
@@ -97,7 +94,8 @@ class RandomTiltAndRotate(Transform):
                     "Expected exactly 7 features in `edge_attr`, generated " \
                     "with `_minimalistic_horizontal_edge_features`"
                 dtype = edge_attr.dtype
-                edge_attr[:, :3] = (edge_attr[:, :3].float() @ R.T).to(dtype)  # `mean_off`, float16 mm not supported on CPU
+                edge_attr[:, :3] = (edge_attr[:, :3].float() @ R.T).to(
+                    dtype)  # `mean_off`, float16 mm not supported on CPU
                 nag[i_level].edge_attr = edge_attr
 
         return nag
@@ -168,7 +166,8 @@ class RandomAnisotropicScale(Transform):
                     "Expected exactly 7 features in `edge_attr`, generated " \
                     "with `_minimalistic_horizontal_edge_features`"
                 edge_attr[:, :3] *= scale
-                edge_attr[:, 3:] *= scale.norm()  # std_off and mean_dist are scaled by the scaling norm, slightly incorrect for std_off...
+                edge_attr[:, 3:] *= scale.norm(
+                )  # std_off and mean_dist are scaled by the scaling norm, slightly incorrect for std_off...
                 nag[i_level].edge_attr = edge_attr
 
         return nag
