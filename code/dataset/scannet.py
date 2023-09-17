@@ -741,34 +741,29 @@ class superpoint_scannt(FastLoad):
         sp_scene_index = self.sp_cls.cloud_ids.index(scene_id)
         nag = self.sp_cls[sp_scene_index]
 
-        coords, colors, labels = nag[0].pos, nag[0].rgb, nag[0].y.argmax(1)
-        mcoords, mcolors, mlabels, remain_super_indices, mask_super_indices, full_super_indices, mask_level, ratio = self.random_masking(
-            nag, coords, colors, labels)
         scene_path = self.sp_cls.processed_paths[sp_scene_index]
+        coords, colors, labels = nag[0].pos, nag[0].rgb, nag[0].y.argmax(1)
+        full_super_indices = nag.get_super_index(1, 0)
+        superpoint_sizes = nag.get_sub_size(1)
 
+        # Sort data by superpoint indices
+        sort = torch.argsort(full_super_indices)
+        coords, colors, labels = coords[sort], colors[sort], labels[sort]
+        full_super_indices = full_super_indices[sort]
+
+        # Type check
         coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
         colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
         labels = torch.from_numpy(labels.astype(np.int64)) if type(labels) != torch.Tensor else labels
-        mcoords = torch.from_numpy(mcoords) if type(mcoords) != torch.Tensor else mcoords
-        mcolors = torch.from_numpy(mcolors) if type(mcolors) != torch.Tensor else mcolors
-        mlabels = torch.from_numpy(mlabels.astype(np.int64)) if type(mlabels) != torch.Tensor else mlabels
-        mask_super_indices = torch.from_numpy(mask_super_indices) if type(
-            mask_super_indices) != torch.Tensor else mask_super_indices
-        remain_super_indices = torch.from_numpy(remain_super_indices) if type(
-            remain_super_indices) != torch.Tensor else remain_super_indices
         full_super_indices = torch.from_numpy(full_super_indices) if type(
             full_super_indices) != torch.Tensor else full_super_indices
+        superpoint_sizes = torch.from_numpy(superpoint_sizes) if type(
+            superpoint_sizes) != torch.Tensor else superpoint_sizes
 
-        return (mcoords, mcolors), mlabels, {
+        return (coords, colors), labels, {
             'scene_id': scene_id,
-            'full_coords': coords,
-            'full_colors': colors,
-            'full_labels': labels,
             'full_super_indices': full_super_indices,
-            'remain_super_indices': remain_super_indices,
-            'mask_super_indices': mask_super_indices,
-            'mask_level': mask_level,
-            'mask_ratio': ratio
+            'superpoint_sizes': superpoint_sizes
         }
 
     def random_masking(self, nag, coords, colors, labels, mask_level=1, ratio=0.6):
@@ -776,14 +771,19 @@ class superpoint_scannt(FastLoad):
         coords, colors, labels = coords.numpy(), colors.numpy(), labels.numpy()
 
         level_num_points = nag.num_points
+        # sub_size = nag.get_sub_size(mask_level, 0)
         full_super_indices = nag.get_super_index(mask_level, 0).numpy()
         mask_num = int(round(ratio * level_num_points[mask_level]))
         mask_indices = np.random.choice(np.arange(level_num_points[mask_level]), mask_num, replace=False)
         remain_super_indices = np.array([index for index in full_super_indices if index not in mask_indices])
         mask_super_indices = np.array([index for index in full_super_indices if index in mask_indices])
 
-        mcoords = np.array([coords[i] for i in range(len(coords)) if full_super_indices[i] not in mask_indices])
-        mcolors = np.array([colors[i] for i in range(len(colors)) if full_super_indices[i] not in mask_indices])
-        mlabels = np.array([labels[i] for i in range(len(labels)) if full_super_indices[i] not in mask_indices])
+        rcoords = np.array([coords[i] for i in range(len(coords)) if full_super_indices[i] not in mask_indices])
+        rcolors = np.array([colors[i] for i in range(len(colors)) if full_super_indices[i] not in mask_indices])
+        rlabels = np.array([labels[i] for i in range(len(labels)) if full_super_indices[i] not in mask_indices])
+        mcoords = np.array([coords[i] for i in range(len(coords)) if full_super_indices[i] in mask_indices])
+        mcolors = np.array([colors[i] for i in range(len(colors)) if full_super_indices[i] in mask_indices])
+        mlabels = np.array([labels[i] for i in range(len(labels)) if full_super_indices[i] in mask_indices])
 
-        return mcoords, mcolors, mlabels, remain_super_indices, mask_super_indices, full_super_indices, mask_level, ratio
+        return (rcoords, rcolors, rlabels), (mcoords, mcolors, mlabels), (remain_super_indices, mask_super_indices,
+                                                                          full_super_indices), mask_level, ratio

@@ -88,31 +88,27 @@ def train(local_rank=0, world_size=1, args=None):
 
     logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}")
 
-    for index, data in enumerate(val_dataloader):
-        print(len(data[0]))
+    for index, data in enumerate(train_dataloader):
         '''
-        batch_num = b
-        data[0]: (coords, colors)
-            mcoords: torch.tensor(b*n, 4) -> [(batch_index, x, y, z), ...]
-            mcolors: torch.tensor(b*n, 3) -> [(r, g, b), ...]
-            
+        batch size = b
+        number of points in scene = N
+        number of superpoints = x
 
-        data[1]: mlabels
-            mlabels: torch.tensor(b*n, )
+        data[0]: (coords, colors)
+            coords: torch.tensor(b*N, 4) -> [(batch_index, x, y, z), ...]
+            colors: torch.tensor(b*N, 3) -> [(r, g, b), ...]
+
+        data[1]: labels
+            labels: torch.tensor(b*N, )
 
         data[2]: extras -> {'scene_id': tuple(b*N, ),
-                            'full_coords': tuple(torch.tensor(N, 4), ...)
-                            'full_colors': tuple(torch.tensor(N, 3), ...)
-                            'full_labels': tuple(torch.tensor(N, ), ...)
-                            'full_super_indices': tuple(torch.tensor(N, ), ...)
-                            'remain_super_indices': tuple(torch.tensor(n, ), ...)
-                            'mask_super_indices': tuple(torch.tensor(m, ), ...)
-                            'mask_level': tuple(int(1), ...),
-                            'mask_ratio': tuple(float(1), ...)}
-        N = n + m
+                            'full_super_indices': tuple(torch.tensor(N, ), ...),
+                            'superpoint_sizes*': tuple(torch.tensor(x, ), ...)}
+
+        *superpoint_sizes denotes: number of points in each superpoint
         '''
 
-        (mcoords, mcolors), mlabels, extras = data
+        (coords, colors), labels, extras = data
         exit()
 
     # Model
