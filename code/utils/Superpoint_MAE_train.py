@@ -89,13 +89,13 @@ def train(local_rank=0, world_size=1, args=None):
     logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}")
 
     for index, data in enumerate(val_dataloader):
+        print(len(data[0]))
         '''
         batch_num = b
-
-        data[0]: (coords, colors, mask_super_indices)
+        data[0]: (coords, colors)
             mcoords: torch.tensor(b*n, 4) -> [(batch_index, x, y, z), ...]
             mcolors: torch.tensor(b*n, 3) -> [(r, g, b), ...]
-            remain_super_indices: torch.tensor(b*n, ) -> [10,10,10,10,98,98,...]
+            
 
         data[1]: mlabels
             mlabels: torch.tensor(b*n, )
