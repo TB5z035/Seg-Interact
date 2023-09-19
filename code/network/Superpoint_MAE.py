@@ -623,7 +623,7 @@ class Superpoint_MAE():
         else:
             raise NotImplementedError
         
-def forward(self, data, **kwargs):
+    def forward(self, data, **kwargs):
         x_vis, mask = self.MAE_encoder(neighborhood, center)
         B,_,C = x_vis.shape # B VIS C
 

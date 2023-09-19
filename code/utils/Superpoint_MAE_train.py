@@ -109,7 +109,12 @@ def train(local_rank=0, world_size=1, args=None):
         '''
 
         (coords, colors), labels, extras = data
-        exit()
+        # print(coords.shape)
+        print(type(extras['superpoint_sizes']))
+        print(len(extras['superpoint_sizes'][0]))
+        # print(coords[:, 0])
+
+        # exit()
 
     # Model
     network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes)
