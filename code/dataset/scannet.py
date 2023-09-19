@@ -741,20 +741,29 @@ class superpoint_scannt(FastLoad):
         sp_scene_index = self.sp_cls.cloud_ids.index(scene_id)
         nag = self.sp_cls[sp_scene_index]
 
-        scene_path = self.sp_cls.processed_paths[sp_scene_index]
         coords, colors, labels = nag[0].pos, nag[0].rgb, nag[0].y.argmax(1)
+        linearity, planarity, scattering, elevation = nag[0].linearity, nag[0].planarity, nag[0].scattering, nag[
+            0].elevation
         full_super_indices = nag.get_super_index(1, 0)
         superpoint_sizes = nag.get_sub_size(1)
 
         # Sort data by superpoint indices
         sort = torch.argsort(full_super_indices)
         coords, colors, labels = coords[sort], colors[sort], labels[sort]
+        linearity, planarity, scattering, elevation = linearity[sort], planarity[sort], scattering[sort], elevation[
+            sort]
         full_super_indices = full_super_indices[sort]
+        full_features = torch.concat((coords, colors, linearity, planarity, scattering, elevation), dim=1)
 
         # Type check
         coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
         colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
         labels = torch.from_numpy(labels.astype(np.int64)) if type(labels) != torch.Tensor else labels
+        linearity = torch.from_numpy(linearity) if type(linearity) != torch.Tensor else linearity
+        planarity = torch.from_numpy(planarity) if type(planarity) != torch.Tensor else planarity
+        scattering = torch.from_numpy(scattering) if type(scattering) != torch.Tensor else scattering
+        elevation = torch.from_numpy(elevation) if type(elevation) != torch.Tensor else elevation
+        full_features = torch.from_numpy(full_features) if type(full_features) != torch.Tensor else full_features
         full_super_indices = torch.from_numpy(full_super_indices) if type(
             full_super_indices) != torch.Tensor else full_super_indices
         superpoint_sizes = torch.from_numpy(superpoint_sizes) if type(
@@ -763,7 +772,12 @@ class superpoint_scannt(FastLoad):
         return (coords, colors), labels, {
             'scene_id': scene_id,
             'full_super_indices': full_super_indices,
-            'superpoint_sizes': superpoint_sizes
+            'superpoint_sizes': superpoint_sizes,
+            'full_features': full_features,
+            'linearity': linearity,
+            'planarity': planarity,
+            'scattering': scattering,
+            'elevation': elevation
         }
 
     def random_masking(self, nag, coords, colors, labels, mask_level=1, ratio=0.6):

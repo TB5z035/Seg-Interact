@@ -94,7 +94,7 @@ def train(local_rank=0, world_size=1, args=None):
         number of points in scene = N
         number of superpoints = x
 
-        data[0]: (coords, colors)
+        data[0]: (coords, colors, full_features)
             coords: torch.tensor(b*N, 4) -> [(batch_index, x, y, z), ...]
             colors: torch.tensor(b*N, 3) -> [(r, g, b), ...]
 
@@ -103,7 +103,12 @@ def train(local_rank=0, world_size=1, args=None):
 
         data[2]: extras -> {'scene_id': tuple(b*N, ),
                             'full_super_indices': tuple(torch.tensor(N, ), ...),
-                            'superpoint_sizes*': tuple(torch.tensor(x, ), ...)}
+                            'superpoint_sizes*': tuple(torch.tensor(x, ), ...),
+                            'full_features': tuple(torch.tensor(N, 10), ...) -> (x, y, z, r, g, b, lin, pla, sca, ele),
+                            'linearity': tuple(torch.tensor(N, ), ...),
+                            'planarity': tuple(torch.tensor(N, ), ...),
+                            'scattering': tuple(torch.tensor(N, ), ...),
+                            'elevation': tuple(torch.tensor(N, ), ...)}
 
         *superpoint_sizes denotes: number of points in each superpoint
         '''
