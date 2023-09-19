@@ -9,13 +9,12 @@ import torch.nn.functional as F
 import timm
 from timm.models.layers import DropPath, trunc_normal_
 import numpy as np
-from .build import MODELS
-from utils import misc
-from utils.checkpoint import get_missing_parameters_message, get_unexpected_parameters_message
-from utils.logger import *
+
+# from .build import MODELS
+# from utils import misc
 import random
-from knn_cuda import KNN
-from extensions.chamfer_dist import ChamferDistanceL1, ChamferDistanceL2
+# from knn_cuda import KNN
+# from extensions.chamfer_dist import ChamferDistanceL1, ChamferDistanceL2
 
 
 class Encoder(nn.Module):   ## Embedding module
@@ -327,8 +326,7 @@ class MaskTransformer(nn.Module):
 
         return x_vis, bool_masked_pos
 
-
-@MODELS.register_module()
+# original code
 class Point_MAE(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -421,7 +419,7 @@ class Point_MAE(nn.Module):
             return loss1
 
 # finetune model
-@MODELS.register_module()
+# @MODELS.register_module()
 class PointTransformer(nn.Module):
     def __init__(self, config, **kwargs):
         super().__init__()
@@ -615,6 +613,9 @@ class Superpoint_MAE():
         # loss
         self.build_loss_func(self.loss)
 
+    def get_sp_feature(self, full_features, sp_sizes_batch):
+        pass
+    
     def build_loss_func(self, loss_type):
         if loss_type == "cdl1":
             self.loss_func = ChamferDistanceL1().cuda()
@@ -623,38 +624,6 @@ class Superpoint_MAE():
         else:
             raise NotImplementedError
         
-    def forward(self, data, **kwargs):
-        x_vis, mask = self.MAE_encoder(neighborhood, center)
-        B,_,C = x_vis.shape # B VIS C
-
-        pos_emd_vis = self.decoder_pos_embed(center[~mask]).reshape(B, -1, C)
-
-        pos_emd_mask = self.decoder_pos_embed(center[mask]).reshape(B, -1, C)
-
-        _,N,_ = pos_emd_mask.shape
-        mask_token = self.mask_token.expand(B, N, -1)
-        x_full = torch.cat([x_vis, mask_token], dim=1)
-        pos_full = torch.cat([pos_emd_vis, pos_emd_mask], dim=1)
-
-        x_rec = self.MAE_decoder(x_full, pos_full, N)
-
-        B, M, C = x_rec.shape
-        rebuild_points = self.increase_dim(x_rec.transpose(1, 2)).transpose(1, 2).reshape(B * M, -1, 3)  # B M 1024
-
-        gt_points = neighborhood[mask].reshape(B*M,-1,3)
-        loss1 = self.loss_func(rebuild_points, gt_points)
-
-        if vis: #visualization
-            vis_points = neighborhood[~mask].reshape(B * (self.num_group - M), -1, 3)
-            full_vis = vis_points + center[~mask].unsqueeze(1)
-            full_rebuild = rebuild_points + center[mask].unsqueeze(1)
-            full = torch.cat([full_vis, full_rebuild], dim=0)
-            # full_points = torch.cat([rebuild_points,vis_points], dim=0)
-            full_center = torch.cat([center[mask], center[~mask]], dim=0)
-            # full = full_points + full_center.unsqueeze(1)
-            ret2 = full_vis.reshape(-1, 3).unsqueeze(0)
-            ret1 = full.reshape(-1, 3).unsqueeze(0)
-            # return ret1, ret2
-            return ret1, ret2, full_center
-        else:
-            return loss1
+    def forward(self, inputs, extras, **kwargs):
+        print('in!')
+        return 1

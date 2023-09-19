@@ -3,7 +3,7 @@ save_epoch_freq: 5
 val_epoch_freq: 1
 
 model: 
-  name: MinkUNet34C #Superpoint_MAE
+  name: Superpoint_MAE
   args: null
 
 train_dataset: 
