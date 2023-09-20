@@ -87,48 +87,65 @@ def train(local_rank=0, world_size=1, args=None):
                                 collate_fn=val_dataset._collate_fn)
 
     logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}")
-
-    for index, data in enumerate(train_dataloader):
-        '''
-        batch size = b
-        number of points in scene = N
-        number of superpoints = x
-
-        data[0]: (coords, colors, full_features)
-            coords: torch.tensor(b*N, 4) -> [(batch_index, x, y, z), ...]
-            colors: torch.tensor(b*N, 3) -> [(r, g, b), ...]
-
-        data[1]: labels
-            labels: torch.tensor(b*N, )
-
-        data[2]: extras -> {'scene_id': tuple(b*N, ),
-                            'full_super_indices': tuple(torch.tensor(N, ), ...),
-                            'superpoint_sizes*': tuple(torch.tensor(x, ), ...),
-                            'full_features': tuple(torch.tensor(N, 10), ...) -> (x, y, z, r, g, b, lin, pla, sca, ele),
-                            'linearity': tuple(torch.tensor(N, ), ...),
-                            'planarity': tuple(torch.tensor(N, ), ...),
-                            'scattering': tuple(torch.tensor(N, ), ...),
-                            'elevation': tuple(torch.tensor(N, ), ...)}
-
-        *superpoint_sizes denotes: number of points in each superpoint
-        '''
-
-        (coords, colors), labels, extras = data
-        exit()
-
     # Model
     network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes)
     network = network.to(device)
+    
+    # for index, data in enumerate(train_dataloader):
+    '''
+    batch size = b
+    number of points in scene = N
+    number of superpoints = x
+
+    data[0]: (coords, colors)
+        coords: torch.tensor(b*N, 4) -> [(batch_index, x, y, z), ...]
+        colors: torch.tensor(b*N, 3) -> [(r, g, b), ...]
+
+    data[1]: labels
+        labels: torch.tensor(b*N, )
+
+    data[2]: extras -> {'scene_id': tuple(b*N, ),
+                        'full_super_indices': tuple(torch.tensor(N, ), ...),
+                        'superpoint_sizes*': tuple(torch.tensor(x, ), ...),
+                        'full_features': tuple(torch.tensor(N, 10), ...) -> (x, y, z, r, g, b, lin, pla, sca, ele),
+                        'linearity': tuple(torch.tensor(N, ), ...),
+                        'planarity': tuple(torch.tensor(N, ), ...),
+                        'scattering': tuple(torch.tensor(N, ), ...),
+                        'elevation': tuple(torch.tensor(N, ), ...)}
+
+    *superpoint_sizes denotes: number of points in each superpoint
+    '''
+
+        # (coords, colors), labels, extras = data
+        # # print(coords.shape)
+        # full_features = extras['full_features']
+        # sp_sizes_batch = extras['superpoint_sizes']
+        # for i, full_feature in enumerate(full_features):
+        #     sp_sizes = sp_sizes_batch[i]
+        #     cur = 0
+        #     for sp_size in sp_sizes:
+        #         sp_feature = full_feature[cur:cur+sp_size]
+        #         print(sp_feature.shape)
+        #         sp_feature = torch.max_pool1d(sp_feature, kernel_size=sp_feature.shape[0])
+        #         print(sp_feature.shape)
+            
+        # print(full_features.shape)
+        # print(len(extras['superpoint_sizes'][0]))
+        # print(coords[:, 0])
+
+        # exit()
+
+
     # Load pretrained model
-    if args.resume:
-        logger.info(f"Resume training from {args.resume}")
-        ckpt = torch.load(args.resume, map_location=device)
-        network.load_state_dict(ckpt['network'])
-    elif args.model['args']['pretrained']:
-        logger.info(f"Load pretrained model from {args.pretrained}")
-        ckpt = torch.load(args.model['args']['pretrained'], map_location=device)
-        network.load_state_dict(ckpt['network'])
-        pass
+    # if args.resume:
+    #     logger.info(f"Resume training from {args.resume}")
+    #     ckpt = torch.load(args.resume, map_location=device)
+    #     network.load_state_dict(ckpt['network'])
+    # elif args.model['args']['pretrained']:
+    #     logger.info(f"Load pretrained model from {args.pretrained}")
+    #     ckpt = torch.load(args.model['args']['pretrained'], map_location=device)
+    #     network.load_state_dict(ckpt['network'])
+    #     pass
     network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
     logger.info(f"Model: {args.model}")
 
@@ -193,7 +210,7 @@ def train_one_epoch(model,
 
     for i, (inputs, labels, extras) in enumerate(train_loader):
         optimizer.zero_grad()
-        output = model(to_device(inputs, device))
+        output = model(inputs, extras)
         loss = criterion(output, to_device(labels, device))
         loss.backward()
         optimizer.step()

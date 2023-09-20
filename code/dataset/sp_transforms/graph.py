@@ -6,7 +6,7 @@ from torch_scatter import scatter_mean, scatter_std
 from torch_geometric.utils import add_self_loops
 from . import Transform
 from ...data import NAG
-from ...sp_dependencies.point_geometric_features.python.bin.pgeof import pgeof
+import pgeof
 from ...utils import sp_debug
 from ...sp_utils import print_tensor_info, isolated_nodes, edge_to_superedge, \
     subedges, to_trimmed, cluster_radius_nn, is_trimmed, base_vectors_3d, \

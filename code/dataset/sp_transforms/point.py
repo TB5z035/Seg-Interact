@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from sklearn.linear_model import RANSACRegressor
-from ...sp_dependencies.point_geometric_features.python.bin.pgeof import pgeof
+import pgeof
 from ...sp_utils import rgb2hsv, rgb2lab, sizes_to_pointers, to_float_rgb, \
     POINT_FEATURES, sanitize_keys
 from . import Transform
