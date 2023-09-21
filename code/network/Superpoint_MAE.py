@@ -1,14 +1,13 @@
 import numpy as np
 import torch
-import torch.nn as nn
 
 from . import register_network
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import timm
-from timm.models.layers import DropPath, trunc_normal_
+#import timm
+#from timm.models.layers import DropPath, trunc_normal_
 import numpy as np
 
 # from .build import MODELS
@@ -52,37 +51,6 @@ class Encoder(nn.Module):   ## Embedding module
         return feature_global.reshape(bs, g, self.encoder_channel)
 
 
-class Group(nn.Module):  # FPS + KNN
-    def __init__(self, num_group, group_size):
-        super().__init__()
-        self.num_group = num_group
-        self.group_size = group_size
-        self.knn = KNN(k=self.group_size, transpose_mode=True)
-
-    def forward(self, xyz):
-        '''
-            input: B N 3
-            ---------------------------
-            output: B G M 3
-            center : B G 3
-        '''
-        batch_size, num_points, _ = xyz.shape
-        # fps the centers out
-        center = misc.fps(xyz, self.num_group) # B G 3
-        # knn to get the neighborhood
-        _, idx = self.knn(xyz, center) # B G M
-        assert idx.size(1) == self.num_group
-        assert idx.size(2) == self.group_size
-        idx_base = torch.arange(0, batch_size, device=xyz.device).view(-1, 1, 1) * num_points
-        idx = idx + idx_base
-        idx = idx.view(-1)
-        neighborhood = xyz.view(batch_size * num_points, -1)[idx, :]
-        neighborhood = neighborhood.view(batch_size, self.num_group, self.group_size, 3).contiguous()
-        # normalize
-        neighborhood = neighborhood - center.unsqueeze(2)
-        return neighborhood, center
-
-
 ## Transformers
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
@@ -104,18 +72,32 @@ class Mlp(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
+    def __init__(self,
+                 embed_dim,
+                 num_heads=4,
+                 qkv_bias=False,
+                 attn_drop=0.,
+                 proj_drop=0.,
+                 qk_scale=None):
+        
         super().__init__()
         self.num_heads = num_heads
-        head_dim = dim // num_heads
-        # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
-        self.scale = qk_scale or head_dim ** -0.5
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        head_dim = embed_dim // num_heads
+        self.qkv = nn.Linear(embed_dim, embed_dim * 3, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim)
-        self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x):
+        # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
+        #self.scale = qk_scale or head_dim ** -0.5
+        #self.proj = nn.Linear(embed_dim, embed_dim)
+        #self.proj_drop = nn.Dropout(proj_drop)
+
+    def patching(self, token_embed, sp_limit=64):
+        for batch_idx in range(len(token_embed)):
+            if token_embed[batch_idx].shape[0] != sp_limit:
+                token_embed[batch_idx]
+        return token_embed
+
+    def forward(self, token_embed):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]   # make torchscript happy (cannot use tensor as tuple)
@@ -576,8 +558,7 @@ class PC_Projector():
 
 @register_network('Superpoint_MAE')
 class Superpoint_MAE():
-
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
         self.config = config
         self.trans_dim = config.transformer_config.trans_dim
@@ -628,9 +609,10 @@ class Superpoint_MAE():
         
     def forward(self, inputs, extras, **kwargs):
         print('in!')
+        return 1
     
 
-'''Stage 2'''
+'''Stage 2
 
 
 class MPN_MLP(nn.module):
@@ -671,3 +653,5 @@ class MPN(MPN_Encoder, MPN_MLP):
 
     def forward(self):
         return mask_sp_indices
+
+'''
