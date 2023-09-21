@@ -118,17 +118,6 @@ def train(local_rank=0, world_size=1, args=None):
 
         # (coords, colors), labels, extras = data
         # # print(coords.shape)
-        # full_features = extras['full_features']
-        # sp_sizes_batch = extras['superpoint_sizes']
-        # for i, full_feature in enumerate(full_features):
-        #     sp_sizes = sp_sizes_batch[i]
-        #     cur = 0
-        #     for sp_size in sp_sizes:
-        #         sp_feature = full_feature[cur:cur+sp_size]
-        #         print(sp_feature.shape)
-        #         sp_feature = torch.max_pool1d(sp_feature, kernel_size=sp_feature.shape[0])
-        #         print(sp_feature.shape)
-            
         # print(full_features.shape)
         # print(len(extras['superpoint_sizes'][0]))
         # print(coords[:, 0])
@@ -146,7 +135,7 @@ def train(local_rank=0, world_size=1, args=None):
     #     ckpt = torch.load(args.model['args']['pretrained'], map_location=device)
     #     network.load_state_dict(ckpt['network'])
     #     pass
-    network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
+    # network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
     logger.info(f"Model: {args.model}")
 
     # Optimizer
