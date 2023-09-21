@@ -6,8 +6,8 @@ from . import register_network
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import timm
-from timm.models.layers import DropPath, trunc_normal_
+# import timm
+# from timm.models.layers import DropPath, trunc_normal_
 import numpy as np
 
 # from .build import MODELS
@@ -49,37 +49,6 @@ class Encoder(nn.Module):   ## Embedding module
         feature = self.second_conv(feature) # BG 1024 n
         feature_global = torch.max(feature, dim=2, keepdim=False)[0] # BG 1024
         return feature_global.reshape(bs, g, self.encoder_channel)
-
-
-class Group(nn.Module):  # FPS + KNN
-    def __init__(self, num_group, group_size):
-        super().__init__()
-        self.num_group = num_group
-        self.group_size = group_size
-        self.knn = KNN(k=self.group_size, transpose_mode=True)
-
-    def forward(self, xyz):
-        '''
-            input: B N 3
-            ---------------------------
-            output: B G M 3
-            center : B G 3
-        '''
-        batch_size, num_points, _ = xyz.shape
-        # fps the centers out
-        center = misc.fps(xyz, self.num_group) # B G 3
-        # knn to get the neighborhood
-        _, idx = self.knn(xyz, center) # B G M
-        assert idx.size(1) == self.num_group
-        assert idx.size(2) == self.group_size
-        idx_base = torch.arange(0, batch_size, device=xyz.device).view(-1, 1, 1) * num_points
-        idx = idx + idx_base
-        idx = idx.view(-1)
-        neighborhood = xyz.view(batch_size * num_points, -1)[idx, :]
-        neighborhood = neighborhood.view(batch_size, self.num_group, self.group_size, 3).contiguous()
-        # normalize
-        neighborhood = neighborhood - center.unsqueeze(2)
-        return neighborhood, center
 
 
 ## Transformers
@@ -574,56 +543,78 @@ class PC_Projector():
 
 
 @register_network('Superpoint_MAE')
-class Superpoint_MAE():
-    def __init__(self, config):
+class Superpoint_MAE(nn.Module):
+    def __init__(self, channel, num_class, sp_embed_dim=128, config=None):
         super().__init__()
-        self.config = config
-        self.trans_dim = config.transformer_config.trans_dim
-        self.MAE_encoder = MaskTransformer(config)
-        self.group_size = config.group_size
-        self.num_group = config.num_group
-        self.drop_path_rate = config.transformer_config.drop_path_rate
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, self.trans_dim))
-        self.decoder_pos_embed = nn.Sequential(
-            nn.Linear(3, 128),
-            nn.GELU(),
-            nn.Linear(128, self.trans_dim)
-        )
+        self.sp_linear_1 = nn.Linear(10, 64)
+        self.sp_linear_2 = nn.Linear(64, sp_embed_dim)
+        print("channel:", channel)
+        # self.config = config
+        # self.trans_dim = config.transformer_config.trans_dim
+        # self.MAE_encoder = MaskTransformer(config)
+        # self.group_size = config.group_size
+        # self.num_group = config.num_group
+        # self.drop_path_rate = config.transformer_config.drop_path_rate
+        # self.mask_token = nn.Parameter(torch.zeros(1, 1, self.trans_dim))
+        # self.decoder_pos_embed = nn.Sequential(
+        #     nn.Linear(3, 128),
+        #     nn.GELU(),
+        #     nn.Linear(128, self.trans_dim)
+        # )
 
-        self.decoder_depth = config.transformer_config.decoder_depth
-        self.decoder_num_heads = config.transformer_config.decoder_num_heads
-        dpr = [x.item() for x in torch.linspace(0, self.drop_path_rate, self.decoder_depth)]
-        self.MAE_decoder = TransformerDecoder(
-            embed_dim=self.trans_dim,
-            depth=self.decoder_depth,
-            drop_path_rate=dpr,
-            num_heads=self.decoder_num_heads,
-        )
+        # self.decoder_depth = config.transformer_config.decoder_depth
+        # self.decoder_num_heads = config.transformer_config.decoder_num_heads
+        # dpr = [x.item() for x in torch.linspace(0, self.drop_path_rate, self.decoder_depth)]
+        # self.MAE_decoder = TransformerDecoder(
+        #     embed_dim=self.trans_dim,
+        #     depth=self.decoder_depth,
+        #     drop_path_rate=dpr,
+        #     num_heads=self.decoder_num_heads,
+        # )
 
-        # prediction head
-        self.increase_dim = nn.Sequential(
-            # nn.Conv1d(self.trans_dim, 1024, 1),
-            # nn.BatchNorm1d(1024),
-            # nn.LeakyReLU(negative_slope=0.2),
-            nn.Conv1d(self.trans_dim, 3*self.group_size, 1)
-        )
+        # # prediction head
+        # self.increase_dim = nn.Sequential(
+        #     # nn.Conv1d(self.trans_dim, 1024, 1),
+        #     # nn.BatchNorm1d(1024),
+        #     # nn.LeakyReLU(negative_slope=0.2),
+        #     nn.Conv1d(self.trans_dim, 3*self.group_size, 1)
+        # )
 
-        trunc_normal_(self.mask_token, std=.02)
-        self.loss = config.loss
+        # trunc_normal_(self.mask_token, std=.02)
+        # self.loss = config.loss
         # loss
-        self.build_loss_func(self.loss)
+        # self.build_loss_func(self.loss)
 
     def get_sp_feature(self, full_features, sp_sizes_batch):
+        sp_features_batch = []
+        for i, full_feature in enumerate(full_features):    
+            sp_sizes = sp_sizes_batch[i]
+            cur = 0
+            sp_features = []
+            for sp_size in sp_sizes:
+                point_features = full_feature[cur:cur+sp_size]
+                point_features = F.relu(self.sp_linear_1(point_features.cuda()))
+                point_features = F.relu(self.sp_linear_2(point_features))
+                # print(point_features.shape)
+                sp_feature =  torch.max(point_features, dim=0, keepdim=True)[0]
+                # print(sp_feature.shape)
+                sp_features.append(sp_feature)
+            sp_features = torch.cat(sp_features, dim=0)
+            print(sp_features.shape)
+            sp_features_batch.append(sp_features)
         pass
     
-    def build_loss_func(self, loss_type):
-        if loss_type == "cdl1":
-            self.loss_func = ChamferDistanceL1().cuda()
-        elif loss_type =='cdl2':
-            self.loss_func = ChamferDistanceL2().cuda()
-        else:
-            raise NotImplementedError
+    # def build_loss_func(self, loss_type):
+    #     if loss_type == "cdl1":
+    #         self.loss_func = ChamferDistanceL1().cuda()
+    #     elif loss_type =='cdl2':
+    #         self.loss_func = ChamferDistanceL2().cuda()
+    #     else:
+    #         raise NotImplementedError
         
     def forward(self, inputs, extras, **kwargs):
-        print('in!')
+        full_features = extras['full_features']
+        sp_sizes_batch = extras['superpoint_sizes']
+        self.get_sp_feature(full_features, sp_sizes_batch)
+        exit()
         return 1
