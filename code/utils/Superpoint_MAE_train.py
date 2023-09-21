@@ -90,7 +90,7 @@ def train(local_rank=0, world_size=1, args=None):
     # Model
     network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes)
     network = network.to(device)
-    
+
     # for index, data in enumerate(train_dataloader):
     '''
     batch size = b
@@ -116,14 +116,13 @@ def train(local_rank=0, world_size=1, args=None):
     *superpoint_sizes denotes: number of points in each superpoint
     '''
 
-        # (coords, colors), labels, extras = data
-        # # print(coords.shape)
-        # print(full_features.shape)
-        # print(len(extras['superpoint_sizes'][0]))
-        # print(coords[:, 0])
+    # (coords, colors), labels, extras = data
+    # # print(coords.shape)
+    # print(full_features.shape)
+    # print(len(extras['superpoint_sizes'][0]))
+    # print(coords[:, 0])
 
-        # exit()
-
+    # exit()
 
     # Load pretrained model
     # if args.resume:
