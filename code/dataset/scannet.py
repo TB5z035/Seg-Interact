@@ -736,49 +736,53 @@ class superpoint_scannt(FastLoad):
 
         return (bcoords, bcolors), blabels, bextras
 
-    def __getitem__(self, index) -> dict:
+    def _prepare_item(self, index):
         scene_id = self.scene_ids[index]
         sp_scene_index = self.sp_cls.cloud_ids.index(scene_id)
         nag = self.sp_cls[sp_scene_index]
 
-        coords, colors, labels = nag[0].pos, nag[0].rgb, nag[0].y.argmax(1)
-        linearity, planarity, scattering, elevation = nag[0].linearity, nag[0].planarity, nag[0].scattering, nag[
-            0].elevation
-        full_super_indices = nag.get_super_index(1, 0)
-        superpoint_sizes = nag.get_sub_size(1)
+        coords, colors, labels = nag[0].pos.numpy(), nag[0].rgb.numpy(), nag[0].y.argmax(1).numpy()
+        linearity, planarity, scattering, verticality, elevation = nag[0].linearity, nag[0].planarity, nag[
+            0].scattering, nag[0].verticality, nag[0].elevation
+        full_super_indices_10 = nag.get_super_index(1, 0)
+        full_super_indices_21 = nag.get_super_index(2, 1)
+        full_super_indices_32 = nag.get_super_index(3, 2)
 
-        # Sort data by superpoint indices
-        sort = torch.argsort(full_super_indices)
-        coords, colors, labels = coords[sort], colors[sort], labels[sort]
-        linearity, planarity, scattering, elevation = linearity[sort], planarity[sort], scattering[sort], elevation[
-            sort]
-        full_super_indices = full_super_indices[sort]
-        full_features = torch.concat((coords, colors, linearity, planarity, scattering, elevation), dim=1)
-
-        # Type check
-        coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
-        colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
-        labels = torch.from_numpy(labels.astype(np.int64)) if type(labels) != torch.Tensor else labels
-        linearity = torch.from_numpy(linearity) if type(linearity) != torch.Tensor else linearity
-        planarity = torch.from_numpy(planarity) if type(planarity) != torch.Tensor else planarity
-        scattering = torch.from_numpy(scattering) if type(scattering) != torch.Tensor else scattering
-        elevation = torch.from_numpy(elevation) if type(elevation) != torch.Tensor else elevation
-        full_features = torch.from_numpy(full_features) if type(full_features) != torch.Tensor else full_features
-        full_super_indices = torch.from_numpy(full_super_indices) if type(
-            full_super_indices) != torch.Tensor else full_super_indices
-        superpoint_sizes = torch.from_numpy(superpoint_sizes) if type(
-            superpoint_sizes) != torch.Tensor else superpoint_sizes
-
-        return (coords, colors), labels, {
+        extras = {
             'scene_id': scene_id,
-            'full_super_indices': full_super_indices,
-            'superpoint_sizes': superpoint_sizes,
-            'full_features': full_features,
             'linearity': linearity,
             'planarity': planarity,
             'scattering': scattering,
-            'elevation': elevation
+            'verticality': verticality,
+            'elevation': elevation,
+            'full_super_indices_10': full_super_indices_10,
+            'full_super_indices_21': full_super_indices_21,
+            'full_super_indices_32': full_super_indices_32
         }
+
+        (coords, _, colors), labels, _ = self.transform((coords, None, colors[:, :3]), labels, extras)
+        return (coords, colors), labels, extras
+
+    def __getitem__(self, index) -> dict:
+        (coords, colors), labels, extras = self._prepare_item(index)
+        linearity, planarity, scattering, verticality, elevation, full_super_indices_10, full_super_indices_21, full_super_indices_32 = extras[
+            'linearity'], extras['planarity'], extras['scattering'], extras['verticality'], extras['elevation'], extras[
+                'full_super_indices_10'], extras['full_super_indices_21'], extras['full_super_indices_32']
+
+        coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
+        colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
+        labels = torch.from_numpy(labels.astype(np.int64)) if type(labels) != torch.Tensor else labels
+        full_super_indices_10 = torch.from_numpy(full_super_indices_10) if type(
+            full_super_indices_10) != torch.Tensor else full_super_indices_10
+        full_super_indices_21 = torch.from_numpy(full_super_indices_21) if type(
+            full_super_indices_21) != torch.Tensor else full_super_indices_21
+        full_super_indices_32 = torch.from_numpy(full_super_indices_32) if type(
+            full_super_indices_32) != torch.Tensor else full_super_indices_32
+
+        full_features = torch.concat((coords, colors, linearity, planarity, scattering, verticality, elevation), dim=1)
+        full_features = torch.from_numpy(full_features) if type(full_features) != torch.Tensor else full_features
+
+        return (coords, colors), labels, extras | {'full_features': full_features}
 
     def random_masking(self, nag, coords, colors, labels, mask_level=1, ratio=0.6):
         assert int(mask_level) in [1, 2, 3], f'selected masking level: {mask_level} is unsupported'

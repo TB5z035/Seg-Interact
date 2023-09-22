@@ -45,6 +45,5 @@ print(percentage)
 print(f'average contain mode_num percentage: {torch.sum(percentage)/len(percentage)}')
 print(f'average pure mode_num percentage: {len(percentage[percentage == 1.])/len(percentage)}')
 '''
-print(nag[0].edge_attr)
 
 # show(nag, class_names=CLASS_NAMES, ignore=NUM_CLASSES, class_colors=CLASS_COLORS, max_points=200000)

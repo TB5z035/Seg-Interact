@@ -104,6 +104,13 @@ class RandomDropout(Transform):
         coords, faces, feats = inputs
         N = coords.shape[0]
         inds = np.random.choice(N, int(N * (1 - self.dropout_ratio)), replace=False)
+        if 'full_super_indices_10' in extra.keys():
+            extra['linearity'] = extra['linearity'][inds]
+            extra['planarity'] = extra['planarity'][inds]
+            extra['scattering'] = extra['scattering'][inds]
+            extra['verticality'] = extra['verticality'][inds]
+            extra['elevation'] = extra['elevation'][inds]
+            extra['full_super_indices_10'] = extra['full_super_indices_10'][inds]
         return (coords[inds], faces, feats[inds]), labels[inds], extra
 
 
@@ -153,6 +160,13 @@ class PointCloudSizeLimit(Transform):
         if self.max_num / N < 1:
             logger.debug(f"Pointcloud constraint {self.max_num} too high for {N}-point point cloud")
         inds = np.random.choice(N, self.max_num, replace=False)
+        if 'full_super_indices_10' in extra.keys():
+            extra['linearity'] = extra['linearity'][inds]
+            extra['planarity'] = extra['planarity'][inds]
+            extra['scattering'] = extra['scattering'][inds]
+            extra['verticality'] = extra['verticality'][inds]
+            extra['elevation'] = extra['elevation'][inds]
+            extra['full_super_indices_10'] = extra['full_super_indices_10'][inds]
         return (coords[inds], faces, feats[inds]), labels[inds], extra
 
 
