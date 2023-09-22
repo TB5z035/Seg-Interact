@@ -87,9 +87,16 @@ def train(local_rank=0, world_size=1, args=None):
                                 collate_fn=val_dataset._collate_fn)
 
     logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}")
+
     # Model
-    network = NETWORKS[args.model['name']](train_dataset.num_channel, train_dataset.num_train_classes)
+    # print(train_dataset.num_channel, train_dataset.num_train_classes)
+    network = NETWORKS[args.model['name']](args.model['args'])
     network = network.to(device)
+
+    for _, data in enumerate(train_dataloader):
+        inputs, labels, extras = data[0], data[1], data[2]
+        _ = network(inputs, extras)
+    exit()
 
     # for index, data in enumerate(train_dataloader):
     '''
@@ -106,14 +113,8 @@ def train(local_rank=0, world_size=1, args=None):
 
     data[2]: extras -> {'scene_id': tuple(b*N, ),
                         'full_super_indices': tuple(torch.tensor(N, ), ...),
-                        'superpoint_sizes*': tuple(torch.tensor(x, ), ...),
-                        'full_features': tuple(torch.tensor(N, 10), ...) -> (x, y, z, r, g, b, lin, pla, sca, ele),
-                        'linearity': tuple(torch.tensor(N, ), ...),
-                        'planarity': tuple(torch.tensor(N, ), ...),
-                        'scattering': tuple(torch.tensor(N, ), ...),
-                        'elevation': tuple(torch.tensor(N, ), ...)}
+                        'full_features': tuple(torch.tensor(N, 10), ...) -> (x, y, z, r, g, b, lin, pla, sca, ele)}
 
-    *superpoint_sizes denotes: number of points in each superpoint
     '''
 
     # (coords, colors), labels, extras = data
@@ -139,6 +140,7 @@ def train(local_rank=0, world_size=1, args=None):
 
     # Optimizer
     optimizer = OPTIMIZERS[args.optimizer['name']](network.parameters(), **args.optimizer['args'])
+    '''
     if args.resume:
         optimizer.load_state_dict(ckpt['optimizer'])
 
@@ -157,6 +159,8 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         global_iter = [0]
         start_epoch = 0
+    
+    '''
 
     for epoch_idx in range(start_epoch, args.epochs):
         # Train

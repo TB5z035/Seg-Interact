@@ -4,7 +4,16 @@ val_epoch_freq: 1
 
 model: 
   name: Superpoint_MAE
-  args: null
+  args: 
+    mask_level: 1
+    mask_ratio: 0.6
+    feature_dim: 11
+    token_embed_dim: 128
+    token_pad_limit: 64
+    head_num: 4
+    block_depth: 4
+    MLP_ratio: 1.
+    
 
 train_dataset: 
   name: superpoint_scannet
@@ -70,7 +79,7 @@ metrics:
   - IoU
 
 epochs: 200
-train_batch_size: 6
+train_batch_size: 1
 train_num_workers: 3
 val_batch_size: 4
 val_num_workers: 2
