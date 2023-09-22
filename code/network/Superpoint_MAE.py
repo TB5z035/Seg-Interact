@@ -17,32 +17,31 @@ import random
 # from extensions.chamfer_dist import ChamferDistanceL1, ChamferDistanceL2
 
 
-class Encoder(nn.Module):  ## Embedding module
+class Token_Embed(nn.Module):  ## Embedding module
 
     def __init__(self, encoder_channel):
         super().__init__()
         self.encoder_channel = encoder_channel
-        self.first_conv = nn.Sequential(nn.Conv1d(3, 128, 1), nn.BatchNorm1d(128), nn.ReLU(inplace=True),
+        self.first_conv = nn.Sequential(nn.Conv1d(11, 128, 1), 
                                         nn.Conv1d(128, 256, 1))
-        self.second_conv = nn.Sequential(nn.Conv1d(512, 512, 1), nn.BatchNorm1d(512), nn.ReLU(inplace=True),
+        self.second_conv = nn.Sequential(nn.Conv1d(512, 512, 1),  nn.ReLU(inplace=True),
                                          nn.Conv1d(512, self.encoder_channel, 1))
 
     def forward(self, point_groups):
         '''
-            point_groups : B G N 3
+            point_groups : N 11
             -----------------
-            feature_global : B G C
+            feature_global : C
         '''
-        bs, g, n, _ = point_groups.shape
-        point_groups = point_groups.reshape(bs * g, n, 3)
+        n, _ = point_groups.shape
         # encoder
-        feature = self.first_conv(point_groups.transpose(2, 1))  # BG 256 n
-        feature_global = torch.max(feature, dim=2, keepdim=True)[0]  # BG 256 1
-        feature = torch.cat([feature_global.expand(-1, -1, n), feature], dim=1)  # BG 512 n
-        feature = self.second_conv(feature)  # BG 1024 n
-        feature_global = torch.max(feature, dim=2, keepdim=False)[0]  # BG 1024
-        return feature_global.reshape(bs, g, self.encoder_channel)
-
+        # print(point_groups.transpose(0,1).shape)
+        feature = self.first_conv(point_groups.transpose(0, 1))  # 256 n
+        feature_global = torch.max(feature, dim=1, keepdim=True)[0]  # 256 1
+        feature = torch.cat([feature_global.expand(-1, n), feature], dim=0)  # BG 512 n
+        feature = self.second_conv(feature)  # 1024 n
+        feature_global = torch.max(feature, dim=1, keepdim=False)[0]  # 1024
+        return feature_global
 
 ## Transformers
 
@@ -462,16 +461,14 @@ class SuperPointNet(nn.Module):
     def __init__(self,
                  sp_feature_dim,
                  sp_embed_dim,
-                 hidden_dim=64,
+                #  hidden_dim=64,
                  pad_limit=64,
                  mask_ratio=0.6):
 
         super().__init__()
         self.pad_limit = pad_limit
         self.mask_ratio = mask_ratio
-
-        self.sp_linear_1 = nn.Linear(sp_feature_dim, hidden_dim)
-        self.sp_linear_2 = nn.Linear(hidden_dim, sp_embed_dim)
+        self.mini_pointnet = Token_Embed(sp_embed_dim)
 
     def gen_token_embed(self, full_features, full_super_indices):
         sp_features_batch = []
@@ -480,10 +477,12 @@ class SuperPointNet(nn.Module):
             sp_max = torch.max(full_super_indices[i])
             sp_features = []
             for sp_index in range(sp_max + 1):
-                point_features = full_feature[torch.where(full_super_indices[i] == sp_index)[0]].to(torch.float32)
-                point_features = F.relu(self.sp_linear_1(point_features.cuda()))
-                point_features = F.relu(self.sp_linear_2(point_features))
-                sp_feature = torch.max(point_features, dim=0, keepdim=True)[0]
+                point_features = full_feature[torch.where(full_super_indices[i] == sp_index)[0]].to(torch.float32).cuda()
+                print(point_features.shape)
+                sp_feature = self.mini_pointnet(point_features)
+                # point_features = F.relu(self.sp_linear_1(point_features.cuda()))
+                # point_features = F.relu(self.sp_linear_2(point_features))
+                # sp_feature = torch.max(point_features, dim=0, keepdim=True)[0]
                 sp_features.append(sp_feature)
             sp_features = torch.cat(sp_features, dim=0)
             sp_features_batch.append(sp_features)
@@ -637,7 +636,7 @@ class Block(nn.Module):
 
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
         # self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-        self.mlp = MLP(in_dim=input_dim,
+        self.mlp = MLP(input_dim=input_dim,
                        hidden_dim=mlp_hidden_dim,
                        act_layer=act_layer,
                        drop=drop)
