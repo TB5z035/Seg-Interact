@@ -457,14 +457,40 @@ class PointTransformer(nn.Module):
         return ret
 
 
+'''Stage 1'''
+
+
+class DropPath(nn.Module):
+
+    def __init__(self, drop_prob: float = 0., inplace: bool = False):
+
+        super().__init__()
+        self.drop_prob = drop_prob
+        self.inplace = inplace
+
+    def drop_path(self, x: torch.Tensor, drop_prob: float = 1.0, inplace: bool = False) -> torch.Tensor:
+        mask_shape: tuple[int] = (x.shape[0],) + (1,) * (x.ndim - 1)
+        # remember tuples have the * operator -> (1,) * 3 = (1,1,1)
+        mask: torch.Tensor = x.new_empty(mask_shape).bernoulli_(drop_prob)
+        mask.div_(drop_prob)
+        if inplace:
+            x.mul_(mask)
+        else:
+            x = x * mask
+        return x
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.training and self.p > 0:
+            x = self.drop_path(x, self.drop_prob, self.inplace)
+        return x
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(p={self.keep_prob})"
+
+
 class SuperPointNet(nn.Module):
 
-    def __init__(self,
-                 sp_feature_dim,
-                 sp_embed_dim,
-                 hidden_dim=64,
-                 pad_limit=64,
-                 mask_ratio=0.6):
+    def __init__(self, sp_feature_dim, sp_embed_dim, hidden_dim=64, pad_limit=64, mask_ratio=0.6):
 
         super().__init__()
         self.pad_limit = pad_limit
@@ -545,26 +571,20 @@ class SuperPointNet(nn.Module):
                                                                                 full_super_indices_21,
                                                                                 batch_remain_indices,
                                                                                 batch_mask_indices)
-        print(batch_remain_token_embed[0].shape, batch_mask_token_embed[0].shape)
         return batch_remain_token_embed, batch_mask_token_embed
 
 
 class MLP(nn.Module):
 
-    def __init__(self,
-                 input_dim,
-                 hidden_dim=None,
-                 output_dim=None,
-                 act_layer=nn.GELU,
-                 drop=0.):
-        
+    def __init__(self, input_dim, hidden_dim=None, output_dim=None, act_layer=nn.GELU, dropout_prob=0.):
+
         super().__init__()
         output_dim = output_dim or input_dim
         hidden_dim = hidden_dim or input_dim
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.act = act_layer()
         self.fc2 = nn.Linear(hidden_dim, output_dim)
-        self.drop = nn.Dropout(drop)
+        self.drop = nn.Dropout(dropout_prob)
 
     def forward(self, x):
         x = self.fc1(x)
@@ -577,13 +597,7 @@ class MLP(nn.Module):
 
 class Attention(nn.Module):
 
-    def __init__(self,
-                 input_dim,
-                 num_heads=4,
-                 qkv_bias=False,
-                 attn_drop=0.,
-                 proj_drop=0.,
-                 qk_scale=None):
+    def __init__(self, input_dim, num_heads=4, attn_drop=0., proj_drop=0., qkv_bias=False, qk_scale=None):
 
         super().__init__()
         self.num_heads = num_heads
@@ -597,12 +611,9 @@ class Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(self, x):
-        assert len(x) == 1, 'only support batch size = 1'
-        x = torch.unsqueeze(x[0], dim=0) if type(x) != torch.Tensor else x
         B, N, P, C = x.shape
         # qkv.shape = [3, B, N, H, P, C/H]
-        qkv = self.qkv(x).reshape(B, N, P, 3, self.num_heads,
-                                                    C // self.num_heads).permute(3, 0, 1, 4, 2, 5)
+        qkv = self.qkv(x).reshape(B, N, P, 3, self.num_heads, C // self.num_heads).permute(3, 0, 1, 4, 2, 5)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
@@ -624,34 +635,93 @@ class Block(nn.Module):
                  mlp_ratio=4.,
                  qkv_bias=False,
                  qk_scale=None,
-                 drop=0.,
+                 dropout_prob=0.,
                  attn_drop=0.,
-                 drop_path=0.,
+                 droppath_prob=0.,
                  act_layer=nn.GELU,
                  norm_layer=nn.LayerNorm):
-        
+
         super().__init__()
         self.norm1 = norm_layer(input_dim)
         self.norm2 = norm_layer(input_dim)
         mlp_hidden_dim = int(input_dim * mlp_ratio)
 
-        # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        # self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-        self.mlp = MLP(in_dim=input_dim,
-                       hidden_dim=mlp_hidden_dim,
-                       act_layer=act_layer,
-                       drop=drop)
-        self.attn = Attention(input_dim=input_dim,
-                              num_heads=head_num,
-                              qkv_bias=qkv_bias,
-                              qk_scale=qk_scale,
-                              attn_drop=attn_drop,
-                              proj_drop=drop)
+        self.drop_path = DropPath(drop_prob=droppath_prob) if droppath_prob > 0. else nn.Identity()
+        self.mlp = MLP(input_dim=input_dim, hidden_dim=mlp_hidden_dim, act_layer=act_layer, dropout_prob=dropout_prob)
+        self.local_attn = Attention(input_dim=input_dim,
+                                    num_heads=head_num,
+                                    qkv_bias=qkv_bias,
+                                    qk_scale=qk_scale,
+                                    attn_drop=attn_drop,
+                                    proj_drop=dropout_prob)
 
     def forward(self, x):
-        x = x + self.drop_path(self.attn(self.norm1(x)))
-        x = x + self.drop_path(self.mlp(self.norm2(x)))
+        x = self.norm1(x)
+        x = self.local_attn(x)
+        x = x + self.drop_path(x)
+        x = self.norm2(x)
+        x = self.mlp(x)
+        x = x + self.drop_path(x)
         return x
+
+
+class MAE_Encoder(nn.Module):
+
+    def __init__(self,
+                 token_embed_dim,
+                 head_num,
+                 depth=5,
+                 mlp_ratio=4.,
+                 qkv_bias=False,
+                 qk_scale=None,
+                 dropout_prob=0.,
+                 attn_drop=0.,
+                 droppath_prob=0.):
+
+        super().__init__()
+        self.blocks = nn.ModuleList([
+            Block(input_dim=token_embed_dim,
+                  head_num=head_num,
+                  mlp_ratio=mlp_ratio,
+                  qkv_bias=qkv_bias,
+                  qk_scale=qk_scale,
+                  dropout_prob=dropout_prob,
+                  attn_drop=attn_drop,
+                  droppath_prob=droppath_prob[i] if isinstance(droppath_prob, list) else droppath_prob)
+            for i in range(depth)
+        ])
+
+    def forward(self, x, pos_embed):
+        for index, block in enumerate(self.blocks):
+            x = block(x + pos_embed)
+        return x
+
+
+class MAE_Decoder(nn.Module):
+
+    def __init__(self,
+                 tokne_embed_dim,
+                 head_num,
+                 depth=5,
+                 mlp_ratio=4.,
+                 qkv_bias=False,
+                 qk_scale=None,
+                 dropout_prob=0.,
+                 attn_drop=0.,
+                 droppath_prob=0.):
+
+        super().__init__()
+        self.blocks = nn.ModuleList([
+            Block(input_dim=tokne_embed_dim,
+                  head_num=head_num,
+                  mlp_ratio=mlp_ratio,
+                  qkv_bias=qkv_bias,
+                  qk_scale=qk_scale,
+                  dropout_prob=dropout_prob,
+                  attn_drop=attn_drop,
+                  droppath_prob=droppath_prob[i] if isinstance(droppath_prob, list) else droppath_prob)
+            for i in range(depth)
+        ])
 
 
 @register_network('Superpoint_MAE')
@@ -664,25 +734,37 @@ class Superpoint_MAE(nn.Module):
         self.mask_level = config['mask_level']
         self.mask_ratio = config['mask_ratio']
         self.feature_dim = config['feature_dim']
+        self.pos_embed_hidden_dim = config['pos_embed_hidden_dim']
         self.token_embed_dim = config['token_embed_dim']
         self.pad_limit = config['token_pad_limit']
         self.head_num = config['head_num']
         self.mlp_ratio = config['MLP_ratio']
+        self.dropout_prob = config['dropout_prob']
+        self.droppath_prob = config['droppath_prob']
+        self.encoder_depth = config['encoder_depth']
+        self.decoder_depth = config['decoder_depth']
 
         # nn
         self.point_net = SuperPointNet(sp_feature_dim=self.feature_dim,
                                        sp_embed_dim=self.token_embed_dim,
                                        pad_limit=self.pad_limit,
                                        mask_ratio=self.mask_ratio)
-        
-        self.block = Block(input_dim=self.token_embed_dim,
-                           head_num=self.head_num,
-                           mlp_ratio=self.mlp_ratio)
 
-        self.local_attention = Attention(input_dim=self.token_embed_dim)
-        self.mlp = MLP(input_dim=self.token_embed_dim,
-                       hidden_dim=self.token_embed_dim,
-                       output_dim=self.token_embed_dim)
+        self.encoder = MAE_Encoder(token_embed_dim=self.token_embed_dim,
+                                   head_num=self.head_num,
+                                   depth=self.encoder_depth,
+                                   mlp_ratio=self.mlp_ratio,
+                                   dropout_prob=self.dropout_prob,
+                                   droppath_prob=self.droppath_prob)
+
+        self.pos_embed = nn.Sequential(nn.Linear(self.token_embed_dim, self.pos_embed_hidden_dim), nn.GELU(),
+                                       nn.Linear(self.pos_embed_hidden_dim, self.token_embed_dim))
+
+    # def build_loss_func(self, loss_type: str='cdl2'):
+    #     if loss_type == "cdl1":
+    #         self.loss_func = ChamferDistanceL1().cuda()
+    #     elif loss_type =='cdl2':
+    #         self.loss_func = ChamferDistanceL2().cuda()
 
     def forward(self, inputs, extras, **kwargs):
         full_features = extras['full_features']
@@ -692,11 +774,24 @@ class Superpoint_MAE(nn.Module):
         batch_remain_token_embed, batch_mask_token_embed = self.point_net(full_features, full_super_indices_10,
                                                                           full_super_indices_21)
 
-        x = self.local_attention(batch_remain_token_embed)
-        x = self.mlp(x)
-        print(x.shape)
+        if isinstance(batch_remain_token_embed, list):
+            assert len(batch_remain_token_embed) == 1, 'only batch size: 1 is currently supported'
+            batch_remain_token_embed = torch.unsqueeze(batch_remain_token_embed[0], dim=0)
+        if isinstance(batch_mask_token_embed, list):
+            assert len(batch_mask_token_embed) == 1, 'only batch size: 1 is currently supported'
+            batch_mask_token_embed = torch.unsqueeze(batch_mask_token_embed[0], dim=0)
 
+        print(batch_remain_token_embed.shape)
+
+        batch_remain_pos_embed = self.pos_embed(batch_remain_token_embed)
+        batch_mask_pos_embed = self.pos_embed(batch_mask_token_embed)
+
+        x = self.encoder(batch_remain_token_embed, batch_remain_pos_embed)
+        print(x.shape)
         exit()
+
+        x = self.decoder()
+
         return None
 
 
