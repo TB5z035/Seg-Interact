@@ -12,7 +12,6 @@ model:
     token_embed_dim: 128
     token_pad_limit: 64
     head_num: 4
-    block_depth: 4
     MLP_ratio: 1.
     dropout_prob: 0.
     droppath_prob: 0.

@@ -75,7 +75,7 @@ def train(local_rank=0, world_size=1, args=None):
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.train_batch_size,
-        shuffle=(train_sampler is None),
+        shuffle=False,  # (train_sampler is None),
         num_workers=args.train_num_workers,
         sampler=train_sampler,
         collate_fn=train_dataset._collate_fn if hasattr(train_dataset, '_collate_fn') else None)
