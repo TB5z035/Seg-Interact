@@ -142,18 +142,20 @@ class Embed_and_Prep(nn.Module):
     def pad_embed(self, batch_token_embed, higher_full_super_indices, batch_indices=None):
         batch_tokens = []
         self.batch_sp2_set = []
+        self.batch_sp2_2_sp1_indices = []
 
         for i in range(len(higher_full_super_indices)):
             sp2_set = torch.unique(higher_full_super_indices[i])
             self.batch_sp2_set.append(sp2_set)
             tokens = []
+            scene_sp2_2_sp1_token_indices = []
 
             for sp2_index in sp2_set:
                 if batch_indices != None:
                     sp2_to_sp_indices = torch.where(higher_full_super_indices[i] == sp2_index)[0]
-                    sp2_to_sp_token_indices = torch.sort(torch.tensor(
-                        [index for index in sp2_to_sp_indices if index in batch_indices[i]], dtype=int),
-                                                         descending=False)
+                    sp2_to_sp_token_indices = torch.tensor(sorted(
+                        [index for index in sp2_to_sp_indices if index in batch_indices[i]]),
+                                                           dtype=int)
                     sp2_token = batch_token_embed[i][sp2_to_sp_token_indices]
                     assert sp2_token.dim(
                     ) == 2, f'sp2_remain_token has dim: {sp2_token.dim()} which is invalid for padding'
@@ -162,8 +164,14 @@ class Embed_and_Prep(nn.Module):
                 pad_dim = self.pad_limit - sp2_token.shape[0]
                 sp2_token = F.pad(sp2_token, (0, 0, 0, pad_dim))
                 tokens.append(sp2_token)
+
+                if len(sp2_to_sp_token_indices) != 0:
+                    scene_sp2_2_sp1_token_indices.append(sp2_to_sp_token_indices)
+
             tokens = torch.stack(tokens, dim=0)
             batch_tokens.append(tokens)
+            scene_sp2_2_sp1_token_indices = torch.cat(scene_sp2_2_sp1_token_indices, dim=0)
+            self.batch_sp2_2_sp1_indices.append(scene_sp2_2_sp1_token_indices)
 
         return batch_tokens
 
@@ -479,9 +487,11 @@ class Superpoint_MAE(nn.Module):
         rec_x = self.decoder(full_x, full_pos, self.pad_limit)
         rec_x = self.prep_embed.remove_padding(rec_x, full_super_indices_21, indices[1])
         rec_x_coords = self.projector(rec_x)
-        rec_x_indices = torch.squeeze(indices[1], dim=0)
-        print(rec_x_coords.shape, rec_x_indices.shape)
-        exit()
+
+        rec_x_indices = self.prep_embed.batch_sp2_2_sp1_indices[0]
+        sort = torch.argsort(rec_x_indices)
+        rec_x_coords = rec_x_coords[sort]
+        rec_x_indices = rec_x_indices[sort]
 
         return rec_x_coords, rec_x_indices
 
