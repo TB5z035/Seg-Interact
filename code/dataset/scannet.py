@@ -747,6 +747,7 @@ class superpoint_scannt(FastLoad):
         full_super_indices_10 = nag.get_super_index(1, 0)
         full_super_indices_21 = nag.get_super_index(2, 1)
         full_super_indices_32 = nag.get_super_index(3, 2)
+        sp1_coords = nag[1].pos
 
         extras = {
             'scene_id': scene_id,
@@ -757,7 +758,8 @@ class superpoint_scannt(FastLoad):
             'elevation': elevation,
             'full_super_indices_10': full_super_indices_10,
             'full_super_indices_21': full_super_indices_21,
-            'full_super_indices_32': full_super_indices_32
+            'full_super_indices_32': full_super_indices_32,
+            'sp1_coords': sp1_coords
         }
 
         (coords, _, colors), labels, _ = self.transform((coords, None, colors[:, :3]), labels, extras)
