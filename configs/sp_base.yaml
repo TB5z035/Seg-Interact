@@ -22,7 +22,7 @@ model:
 train_dataset: 
   name: superpoint_scannet
   args:
-    root: /data/share/datasets/ScanNet
+    root: /data/discover-07/share/datasets/ScanNet
     split: train
     # limit: 20
     transform:
@@ -60,7 +60,7 @@ train_dataset:
 val_dataset:
   name: superpoint_scannet
   args: 
-    root: /data/share/datasets/ScanNet
+    root: /data/discover-07/share/datasets/ScanNet
     split: val
     transform:
       - point_chromatic_normalize:

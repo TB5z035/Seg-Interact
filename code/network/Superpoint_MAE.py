@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from . import register_network
 '''Stage 1'''
-
+from ..sp_dependencies.chamfer_distance import ChamferDistance
 
 class DropPath(nn.Module):
 
@@ -455,7 +455,7 @@ class Superpoint_MAE(nn.Module):
                                    dropout_prob=self.dropout_prob,
                                    droppath_prob=self.droppath_prob)
         self.projector = nn.Linear(self.token_embed_dim, 3)
-
+        self.lossf = ChamferDistance()
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -469,7 +469,6 @@ class Superpoint_MAE(nn.Module):
         full_super_indices_10 = extras['full_super_indices_10']
         full_super_indices_21 = extras['full_super_indices_21']
         sp1_coords = extras['sp1_coords']
-
         assert len(full_features) and len(sp1_coords) == 1, 'only batch size: 1 is currently supported'
         batch_token_embed, batch_pos_embed, indices = self.prep_embed(full_features, sp1_coords, full_super_indices_10,
                                                                       full_super_indices_21)
@@ -492,8 +491,10 @@ class Superpoint_MAE(nn.Module):
         sort = torch.argsort(rec_x_indices)
         rec_x_coords = rec_x_coords[sort]
         rec_x_indices = rec_x_indices[sort]
-
-        return rec_x_coords, rec_x_indices
+        target = sp1_coords[0]
+        loss = torch.mean(self.lossf(target, rec_x_coords))
+        print(loss)
+        return rec_x_coords, rec_x_indices, loss
 
 
 '''Stage 2
