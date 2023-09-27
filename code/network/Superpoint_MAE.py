@@ -105,6 +105,8 @@ class Embed_and_Prep(nn.Module):
         self.pad_limit = pad_limit
         self.mask_ratio = mask_ratio
         self.batch_sp2_set = None
+        self.batch_convert_remain_indices = []
+        self.batch_convert_mask_indices = []
 
         self.token_embed = Token_Embed(feature_dim=sp_feature_dim, token_embed_dim=sp_embed_dim)
         self.pos_embed = Pos_Embed(output_dim=sp_embed_dim)
@@ -139,10 +141,10 @@ class Embed_and_Prep(nn.Module):
 
         return batch_mask_embed, batch_remain_embed, batch_mask_indices, batch_remain_indices
 
-    def pad_embed(self, batch_token_embed, higher_full_super_indices, batch_indices=None):
+    def pad_embed(self, batch_token_embed, higher_full_super_indices, batch_indices=None, record_mode=''):
+        assert record_mode in ['', 'remain', 'mask'], 'check pad_embed record_mode'
         batch_tokens = []
         self.batch_sp2_set = []
-        self.batch_sp2_2_sp1_indices = []
 
         for i in range(len(higher_full_super_indices)):
             sp2_set = torch.unique(higher_full_super_indices[i])
@@ -171,7 +173,10 @@ class Embed_and_Prep(nn.Module):
             tokens = torch.stack(tokens, dim=0)
             batch_tokens.append(tokens)
             scene_sp2_2_sp1_token_indices = torch.cat(scene_sp2_2_sp1_token_indices, dim=0)
-            self.batch_sp2_2_sp1_indices.append(scene_sp2_2_sp1_token_indices)
+            if record_mode == 'remain':
+                self.batch_convert_remain_indices.append(scene_sp2_2_sp1_token_indices)
+            elif record_mode == 'mask':
+                self.batch_convert_mask_indices.append(scene_sp2_2_sp1_token_indices)
 
         return batch_tokens
 
@@ -179,8 +184,9 @@ class Embed_and_Prep(nn.Module):
         if self.batch_sp2_set is None:
             return padded_tokens
         else:
+            if type(self.batch_sp2_set) == list:
+                self.batch_sp2_set = torch.squeeze(self.batch_sp2_set[0], dim=0)
             assert padded_tokens.dim() == 4, "check padded_tokens' dim "
-            self.batch_sp2_set = torch.squeeze(self.batch_sp2_set[0], dim=0)
             scene_unpadded_tokens = []
 
             for i in range(len(self.batch_sp2_set)):
@@ -200,8 +206,14 @@ class Embed_and_Prep(nn.Module):
         _, _, batch_mask_indices, batch_remain_indices = self.mask_token_embed(batch_token_embed)
         batch_remain_token_embed = self.pad_embed(batch_token_embed, full_super_indices_21, batch_remain_indices)
         batch_mask_token_embed = self.pad_embed(batch_token_embed, full_super_indices_21, batch_mask_indices)
-        batch_remain_pos_embed = self.pad_embed(batch_pos_embed, full_super_indices_21, batch_remain_indices)
-        batch_mask_pos_embed = self.pad_embed(batch_pos_embed, full_super_indices_21, batch_mask_indices)
+        batch_remain_pos_embed = self.pad_embed(batch_pos_embed,
+                                                full_super_indices_21,
+                                                batch_remain_indices,
+                                                record_mode='remain')
+        batch_mask_pos_embed = self.pad_embed(batch_pos_embed,
+                                              full_super_indices_21,
+                                              batch_mask_indices,
+                                              record_mode='mask')
 
         if isinstance(batch_remain_token_embed, list):
             batch_remain_token_embed = torch.unsqueeze(batch_remain_token_embed[0], dim=0)
@@ -413,8 +425,9 @@ class MAE_Decoder(nn.Module):
     def forward(self, full_x, full_pos, pad_limit):
         for _, block in enumerate(self.blocks):
             full_x = block(full_x + full_pos)
-        rec_x = full_x[:, :, pad_limit:]
-        return self.norm(rec_x)
+        rec_remain_x = self.norm(full_x[:, :, :pad_limit])
+        rec_mask_x = self.norm(full_x[:, :, pad_limit:])
+        return rec_remain_x, rec_mask_x
 
 
 @register_network('Superpoint_MAE')
@@ -484,11 +497,15 @@ class Superpoint_MAE(nn.Module):
         full_x = torch.cat((remain_x, mask_x), dim=2)
         full_pos = torch.cat((batch_remain_pos_embed, batch_mask_pos_embed), dim=2)
 
-        rec_x = self.decoder(full_x, full_pos, self.pad_limit)
-        rec_x = self.prep_embed.remove_padding(rec_x, full_super_indices_21, indices[1])
-        rec_x_coords = self.projector(rec_x)
+        rec_remain_x, rec_mask_x = self.decoder(full_x, full_pos, self.pad_limit)
+        rec_remain_x = self.prep_embed.remove_padding(rec_remain_x, full_super_indices_21, indices[0])
+        rec_mask_x = self.prep_embed.remove_padding(rec_mask_x, full_super_indices_21, indices[1])
+        rec_full_x = torch.cat((rec_remain_x, rec_mask_x), dim=0)
 
-        rec_x_indices = self.prep_embed.batch_sp2_2_sp1_indices[0]
+        rec_x_coords = self.projector(rec_full_x)
+
+        rec_x_indices = torch.cat(
+            (self.prep_embed.batch_convert_remain_indices[0], self.prep_embed.batch_convert_mask_indices[0]), dim=0)
         sort = torch.argsort(rec_x_indices)
         rec_x_coords = rec_x_coords[sort]
         rec_x_indices = rec_x_indices[sort]
