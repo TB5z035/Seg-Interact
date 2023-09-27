@@ -95,8 +95,9 @@ def train(local_rank=0, world_size=1, args=None):
 
     for _, data in enumerate(train_dataloader):
         inputs, labels, extras = data[0], data[1], data[2]
-        _ = network(inputs, extras)
-    exit()
+        rec_x, rec_x_indices = network(inputs, extras)
+        print(rec_x.shape, rec_x_indices.shape)
+        exit()
 
     # for index, data in enumerate(train_dataloader):
     '''
