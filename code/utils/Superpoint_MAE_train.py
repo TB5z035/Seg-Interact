@@ -14,11 +14,11 @@ from ..dataset import DATASETS
 # from .metrics import IoU, mIoU, Acc, MATRICS
 from ..metrics import METRICS
 from ..network import NETWORKS
-
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
 from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, save_checkpoint
 from .validate import validate
+
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -95,7 +95,7 @@ def train(local_rank=0, world_size=1, args=None):
 
     for _, data in enumerate(train_dataloader):
         inputs, labels, extras = data[0], data[1], data[2]
-        rec_x, rec_x_indices = network(inputs, extras)
+        rec_x, rec_x_indices, loss = network(inputs, extras)
         print(rec_x.shape, rec_x_indices.shape)
         exit()
 

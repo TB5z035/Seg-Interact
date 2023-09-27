@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from . import register_network
 '''Stage 1'''
-from ..sp_dependencies.chamfer_distance import ChamferDistance
+from ..sp_dependencies.chamfer3D import dist_chamfer_3D
 
 class DropPath(nn.Module):
 
@@ -468,7 +468,7 @@ class Superpoint_MAE(nn.Module):
                                    dropout_prob=self.dropout_prob,
                                    droppath_prob=self.droppath_prob)
         self.projector = nn.Linear(self.token_embed_dim, 3)
-        self.lossf = ChamferDistance()
+        self.lossf = dist_chamfer_3D.chamfer_3DDist()
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -509,7 +509,9 @@ class Superpoint_MAE(nn.Module):
         rec_x_coords = rec_x_coords[sort]
         rec_x_indices = rec_x_indices[sort]
         target = sp1_coords[0]
-        loss = torch.mean(self.lossf(target, rec_x_coords))
+        print(rec_x_coords.shape, target.shape)
+        dist1, dist2, _, _ = self.lossf(target.unsqueeze(0).cuda(), rec_x_coords.unsqueeze(0))
+        loss = torch.mean(dist1**2) + torch.mean(dist2**2)
         print(loss)
         return rec_x_coords, rec_x_indices, loss
 
