@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import tensorboardX
+from tqdm import tqdm
 
 from ..dataset import DATASETS
 # from .metrics import IoU, mIoU, Acc, MATRICS
@@ -29,6 +30,7 @@ def train(local_rank=0, world_size=1, args=None):
     assert args is not None
     logger.warning(f"Local rank: {local_rank}, World size: {world_size}")
 
+    args.seed = 0
     np.random.seed(args.seed)
     random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -93,11 +95,10 @@ def train(local_rank=0, world_size=1, args=None):
     network = NETWORKS[args.model['name']](args.model['args'])
     network = network.to(device)
 
-    for _, data in enumerate(train_dataloader):
+    for i, data in enumerate(tqdm(val_dataloader)):
         inputs, labels, extras = data[0], data[1], data[2]
         rec_x, rec_x_indices = network(inputs, extras)
-        print(rec_x.shape, rec_x_indices.shape)
-        exit()
+    exit()
 
     # for index, data in enumerate(train_dataloader):
     '''

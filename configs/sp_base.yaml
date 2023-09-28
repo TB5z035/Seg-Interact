@@ -10,7 +10,7 @@ model:
     feature_dim: 11
     pos_embed_hidden_dim: 128
     token_embed_dim: 128
-    token_pad_limit: 64
+    token_pad_limit: 80
     head_num: 4
     MLP_ratio: 1.
     dropout_prob: 0.
@@ -22,7 +22,7 @@ model:
 train_dataset: 
   name: superpoint_scannet
   args:
-    root: /data/share/datasets/ScanNet
+    root: /data/discover-07/share/datasets/ScanNet
     split: train
     # limit: 20
     transform:
@@ -60,7 +60,7 @@ train_dataset:
 val_dataset:
   name: superpoint_scannet
   args: 
-    root: /data/share/datasets/ScanNet
+    root: /data/discover-07/share/datasets/ScanNet
     split: val
     transform:
       - point_chromatic_normalize:
@@ -84,7 +84,7 @@ metrics:
 
 epochs: 200
 train_batch_size: 1
-train_num_workers: 3
-val_batch_size: 4
-val_num_workers: 2
+train_num_workers: 1
+val_batch_size: 1
+val_num_workers: 1
 seed: 0
