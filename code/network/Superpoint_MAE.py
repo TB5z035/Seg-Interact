@@ -509,10 +509,11 @@ class Superpoint_MAE(nn.Module):
         rec_x_coords = rec_x_coords[sort]
         rec_x_indices = rec_x_indices[sort]
         target = sp1_coords[0]
-        print(rec_x_coords.shape, target.shape)
-        dist1, dist2, _, _ = self.lossf(target.unsqueeze(0).cuda(), rec_x_coords.unsqueeze(0))
-        loss = torch.mean(dist1**2) + torch.mean(dist2**2)
-        print(loss)
+        print('rec:', rec_x_coords.shape, 'label:', target.shape)
+        loss = None
+        # dist1, dist2, _, _ = self.lossf(target.unsqueeze(0).cuda(), rec_x_coords.unsqueeze(0))
+        # loss = torch.mean(dist1**2) + torch.mean(dist2**2)
+        # print(loss)
         return rec_x_coords, rec_x_indices, loss
 
 

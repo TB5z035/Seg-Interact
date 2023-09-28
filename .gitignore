@@ -1,3 +1,4 @@
 experiments/
 **/__pycache__/
 MinkowskiEngine/
+/code/sp_dependencies/tmp
