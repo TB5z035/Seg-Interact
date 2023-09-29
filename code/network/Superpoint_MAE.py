@@ -69,9 +69,9 @@ class Token_Embed(nn.Module):
     def forward(self, full_features, full_super_indices):
         sp_features_batch = []
         for i, full_feature in enumerate(full_features):
-            sp_max = torch.max(full_super_indices[i])
+            sp_max = len(torch.unique(full_super_indices[i]))
             sp_features = []
-            for sp_index in range(sp_max + 1):
+            for sp_index in range(sp_max):
                 point_features = full_feature[torch.where(full_super_indices[i] == sp_index)[0]].to(
                     torch.float32).cuda()
                 sp_feature = self.mini_pointnet(point_features)
@@ -174,8 +174,10 @@ class Embed_and_Prep(nn.Module):
             batch_tokens.append(tokens)
             scene_sp2_2_sp1_token_indices = torch.cat(scene_sp2_2_sp1_token_indices, dim=0)
             if record_mode == 'remain':
+                self.batch_convert_remain_indices.clear()
                 self.batch_convert_remain_indices.append(scene_sp2_2_sp1_token_indices)
             elif record_mode == 'mask':
+                self.batch_convert_mask_indices.clear()
                 self.batch_convert_mask_indices.append(scene_sp2_2_sp1_token_indices)
 
         return batch_tokens
@@ -186,11 +188,11 @@ class Embed_and_Prep(nn.Module):
         else:
             if type(self.batch_sp2_set) == list:
                 self.batch_sp2_set = torch.squeeze(self.batch_sp2_set[0], dim=0)
+
             assert padded_tokens.dim() == 4, "check padded_tokens' dim "
             scene_unpadded_tokens = []
 
-            for i in range(len(self.batch_sp2_set)):
-                sp2_index = self.batch_sp2_set[i]
+            for i, sp2_index in enumerate(self.batch_sp2_set):
                 sp2_to_sp_indices = torch.where(higher_full_super_indices[0] == sp2_index)[0]
                 sp1_num = len(
                     torch.tensor([index for index in sp2_to_sp_indices if index in batch_token_indices[0]], dtype=int))
@@ -497,8 +499,10 @@ class Superpoint_MAE(nn.Module):
         full_pos = torch.cat((batch_remain_pos_embed, batch_mask_pos_embed), dim=2)
 
         rec_remain_x, rec_mask_x = self.decoder(full_x, full_pos, self.pad_limit)
+
         rec_remain_x = self.prep_embed.remove_padding(rec_remain_x, full_super_indices_21, indices[0])
         rec_mask_x = self.prep_embed.remove_padding(rec_mask_x, full_super_indices_21, indices[1])
+
         rec_full_x = torch.cat((rec_remain_x, rec_mask_x), dim=0)
 
         rec_x_coords = self.projector(rec_full_x)
@@ -506,6 +510,9 @@ class Superpoint_MAE(nn.Module):
         rec_x_indices = torch.cat(
             (self.prep_embed.batch_convert_remain_indices[0], self.prep_embed.batch_convert_mask_indices[0]), dim=0)
         sort = torch.argsort(rec_x_indices)
+
+        assert len(rec_x_coords) == len(rec_x_indices), f'{rec_x_coords.shape, rec_x_indices.shape}'
+
         rec_x_coords = rec_x_coords[sort]
         rec_x_indices = rec_x_indices[sort]
         target = sp1_coords[0]
