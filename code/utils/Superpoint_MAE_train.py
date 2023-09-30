@@ -95,10 +95,10 @@ def train(local_rank=0, world_size=1, args=None):
     network = NETWORKS[args.model['name']](args.model['args'])
     network = network.to(device)
 
-    for i, data in enumerate(tqdm(val_dataloader)):
-        inputs, labels, extras = data[0], data[1], data[2]
-        rec_x, rec_x_indices = network(inputs, extras)
-    exit()
+    # for i, data in enumerate(tqdm(val_dataloader)):
+    #     inputs, labels, extras = data[0], data[1], data[2]
+    #     rec_x, rec_x_indices, loss = network(inputs, extras)
+    # exit()
 
     # for index, data in enumerate(train_dataloader):
     '''
@@ -167,18 +167,17 @@ def train(local_rank=0, world_size=1, args=None):
                         scheduler=scheduler,
                         val_loader=val_dataloader,
                         writer=writer)
-        exit()
         # Validate
-        if epoch_idx % args.val_epoch_freq == 0:
-            validate(network,
-                     val_dataloader,
-                     metrics=[METRICS[metric] for metric in args.metrics],
-                     global_iter=global_iter[0],
-                     writer=writer)
+        # if epoch_idx % args.val_epoch_freq == 0:
+        #     validate(network,
+        #              val_dataloader,
+        #              metrics=[METRICS[metric] for metric in args.metrics],
+        #              global_iter=global_iter[0],
+        #              writer=writer)
             #torch.cuda.empty_cache()
 
         if epoch_idx % args.save_epoch_freq == 0:
-            save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
+            save_checkpoint(network, None, epoch_idx, global_iter[0], optimizer, scheduler,exp_dir=args.exp_dir, start_time=args.start_time, name=f'epoch#{epoch_idx}')
 
 
 def train_one_epoch(model,

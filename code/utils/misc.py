@@ -78,7 +78,7 @@ def init_logger(args):
     return writer
 
 
-def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, name='latest'):
+def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer=None, scheduler=None, exp_dir=None, start_time=None, name='latest'):
     if get_local_rank() == 0:
         torch.save(
             {
@@ -88,7 +88,7 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
                 'optimizer': optimizer.state_dict() if optimizer is not None else None,
                 'scheduler': scheduler.state_dict() if scheduler is not None else None,
                 'args': yaml.safe_dump(args.__dict__, default_flow_style=False) if args is not None else None,
-            }, f'{args.exp_dir}/checkpoints/{args.start_time}/{name}.pth')
+            }, f'{exp_dir}/checkpoints/{start_time}/{name}.pth')
 
 
 '''Functionalities for Saving Pseudo Label Data'''
