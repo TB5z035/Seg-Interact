@@ -95,7 +95,7 @@ def train(local_rank=0, world_size=1, args=None):
     network = NETWORKS[args.model['name']](args.model['args'])
     network = network.to(device)
 
-    for i, data in enumerate(tqdm(val_dataloader)):
+    for i, data in enumerate(tqdm(train_dataloader)):
         inputs, labels, extras = data[0], data[1], data[2]
         rec_x, rec_x_indices = network(inputs, extras)
     exit()
