@@ -194,6 +194,7 @@ def train_one_epoch(model,
         optimizer.zero_grad()
         inputs, labels, extras = data[0], data[1], data[2]
         rec_x, rec_x_indices, loss = model(inputs, extras)
+        exit()
         loss.backward()
         optimizer.step()
         if get_world_size() > 1:
