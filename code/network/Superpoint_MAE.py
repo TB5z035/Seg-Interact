@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from . import register_network
+from ..sp_dependencies.chamfer3D import dist_chamfer_3D
 '''Stage 1'''
 
 
@@ -155,6 +156,8 @@ class Embed_and_Prep(nn.Module):
             for sp2_index in sp2_set:
                 if batch_indices != None:
                     sp2_to_sp_indices = torch.where(higher_full_super_indices[i] == sp2_index)[0]
+                    for j in range(len(batch_indices)):
+                        batch_indices[j] = batch_indices[j].cuda()
                     sp2_to_sp_token_indices = torch.tensor(sorted(
                         [index for index in sp2_to_sp_indices if index in batch_indices[i]]),
                                                            dtype=int)
@@ -470,7 +473,7 @@ class Superpoint_MAE(nn.Module):
                                    dropout_prob=self.dropout_prob,
                                    droppath_prob=self.droppath_prob)
         self.projector = nn.Linear(self.token_embed_dim, 3)
-
+        self.lossf = dist_chamfer_3D.chamfer_3DDist()
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -484,7 +487,6 @@ class Superpoint_MAE(nn.Module):
         full_super_indices_10 = extras['full_super_indices_10']
         full_super_indices_21 = extras['full_super_indices_21']
         sp1_coords = extras['sp1_coords']
-
         assert len(full_features) and len(sp1_coords) == 1, 'only batch size: 1 is currently supported'
         batch_token_embed, batch_pos_embed, indices = self.prep_embed(full_features, sp1_coords, full_super_indices_10,
                                                                       full_super_indices_21)
@@ -516,8 +518,10 @@ class Superpoint_MAE(nn.Module):
 
         rec_x_coords = rec_x_coords[sort]
         rec_x_indices = rec_x_indices[sort]
-
-        return rec_x_coords, rec_x_indices
+        target = sp1_coords[0]
+        dist1, dist2, _, _ = self.lossf(target.unsqueeze(0).cuda(), rec_x_coords.unsqueeze(0))
+        loss = torch.mean(dist1**2) + torch.mean(dist2**2)
+        return rec_x_coords, rec_x_indices, loss
 
 
 '''Stage 2

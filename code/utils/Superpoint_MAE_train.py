@@ -15,7 +15,6 @@ from ..dataset import DATASETS
 # from .metrics import IoU, mIoU, Acc, MATRICS
 from ..metrics import METRICS
 from ..network import NETWORKS
-
 from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
 from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, save_checkpoint
@@ -94,13 +93,6 @@ def train(local_rank=0, world_size=1, args=None):
     # print(train_dataset.num_channel, train_dataset.num_train_classes)
     network = NETWORKS[args.model['name']](args.model['args'])
     network = network.to(device)
-
-    for i, data in enumerate(tqdm(train_dataloader)):
-        inputs, labels, extras = data[0], data[1], data[2]
-        rec_x, rec_x_indices = network(inputs, extras)
-    exit()
-
-    # for index, data in enumerate(train_dataloader):
     '''
     batch size = b
     number of points in scene = N
@@ -128,27 +120,22 @@ def train(local_rank=0, world_size=1, args=None):
     # exit()
 
     # Load pretrained model
-    # if args.resume:
-    #     logger.info(f"Resume training from {args.resume}")
-    #     ckpt = torch.load(args.resume, map_location=device)
-    #     network.load_state_dict(ckpt['network'])
-    # elif args.model['args']['pretrained']:
-    #     logger.info(f"Load pretrained model from {args.pretrained}")
-    #     ckpt = torch.load(args.model['args']['pretrained'], map_location=device)
-    #     network.load_state_dict(ckpt['network'])
-    #     pass
-    # network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
+    if args.resume:
+        logger.info(f"Resume training from {args.resume}")
+        ckpt = torch.load(args.resume, map_location=device)
+        network.load_state_dict(ckpt['network'])
+    network = torch.nn.parallel.DistributedDataParallel(network, device_ids=[local_rank], output_device=local_rank)
     logger.info(f"Model: {args.model}")
 
     # Optimizer
     optimizer = OPTIMIZERS[args.optimizer['name']](network.parameters(), **args.optimizer['args'])
-    '''
+
     if args.resume:
         optimizer.load_state_dict(ckpt['optimizer'])
 
     # Criterion
     # TODO: init from args
-    criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
+    # criterion = torch.nn.CrossEntropyLoss(ignore_index=255)
 
     # Scheduler
     scheduler = SCHEDULERS[args.scheduler['name']](optimizer, **args.scheduler['args'])
@@ -161,39 +148,41 @@ def train(local_rank=0, world_size=1, args=None):
     else:
         global_iter = [0]
         start_epoch = 0
-    
-    '''
 
     for epoch_idx in range(start_epoch, args.epochs):
         # Train
         train_one_epoch(network,
                         optimizer,
                         train_dataloader,
-                        criterion,
                         epoch_idx,
                         global_iter,
                         scheduler=scheduler,
                         val_loader=val_dataloader,
                         writer=writer)
-
         # Validate
-        if epoch_idx % args.val_epoch_freq == 0:
-            validate(network,
-                     val_dataloader,
-                     criterion,
-                     metrics=[METRICS[metric] for metric in args.metrics],
-                     global_iter=global_iter[0],
-                     writer=writer)
-            #torch.cuda.empty_cache()
+        # if epoch_idx % args.val_epoch_freq == 0:
+        #     validate(network,
+        #              val_dataloader,
+        #              metrics=[METRICS[metric] for metric in args.metrics],
+        #              global_iter=global_iter[0],
+        #              writer=writer)
+        #torch.cuda.empty_cache()
 
         if epoch_idx % args.save_epoch_freq == 0:
-            save_checkpoint(network, args, epoch_idx, global_iter[0], optimizer, scheduler, name=f'epoch#{epoch_idx}')
+            save_checkpoint(network,
+                            None,
+                            epoch_idx,
+                            global_iter[0],
+                            optimizer,
+                            scheduler,
+                            exp_dir=args.exp_dir,
+                            start_time=args.start_time,
+                            name=f'epoch#{epoch_idx}')
 
 
 def train_one_epoch(model,
                     optimizer,
                     train_loader,
-                    criterion,
                     epoch_idx,
                     iter_idx,
                     logging_freq=10,
@@ -201,11 +190,10 @@ def train_one_epoch(model,
                     val_loader=None,
                     writer=None):
     model.train()
-
-    for i, (inputs, labels, extras) in enumerate(train_loader):
+    for i, data in enumerate(train_loader):
         optimizer.zero_grad()
-        output = model(inputs, extras)
-        loss = criterion(output, to_device(labels, device))
+        inputs, labels, extras = data[0], data[1], data[2]
+        rec_x, rec_x_indices, loss = model(inputs, extras)
         loss.backward()
         optimizer.step()
         if get_world_size() > 1:
