@@ -785,25 +785,3 @@ class superpoint_scannt(FastLoad):
         full_features = torch.from_numpy(full_features) if type(full_features) != torch.Tensor else full_features
 
         return (coords, colors), labels, extras | {'full_features': full_features}
-
-    def random_masking(self, nag, coords, colors, labels, mask_level=1, ratio=0.6):
-        assert int(mask_level) in [1, 2, 3], f'selected masking level: {mask_level} is unsupported'
-        coords, colors, labels = coords.numpy(), colors.numpy(), labels.numpy()
-
-        level_num_points = nag.num_points
-        # sub_size = nag.get_sub_size(mask_level, 0)
-        full_super_indices = nag.get_super_index(mask_level, 0).numpy()
-        mask_num = int(round(ratio * level_num_points[mask_level]))
-        mask_indices = np.random.choice(np.arange(level_num_points[mask_level]), mask_num, replace=False)
-        remain_super_indices = np.array([index for index in full_super_indices if index not in mask_indices])
-        mask_super_indices = np.array([index for index in full_super_indices if index in mask_indices])
-
-        rcoords = np.array([coords[i] for i in range(len(coords)) if full_super_indices[i] not in mask_indices])
-        rcolors = np.array([colors[i] for i in range(len(colors)) if full_super_indices[i] not in mask_indices])
-        rlabels = np.array([labels[i] for i in range(len(labels)) if full_super_indices[i] not in mask_indices])
-        mcoords = np.array([coords[i] for i in range(len(coords)) if full_super_indices[i] in mask_indices])
-        mcolors = np.array([colors[i] for i in range(len(colors)) if full_super_indices[i] in mask_indices])
-        mlabels = np.array([labels[i] for i in range(len(labels)) if full_super_indices[i] in mask_indices])
-
-        return (rcoords, rcolors, rlabels), (mcoords, mcolors, mlabels), (remain_super_indices, mask_super_indices,
-                                                                          full_super_indices), mask_level, ratio

@@ -2,9 +2,9 @@ world_size: 1
 save_epoch_freq: 5
 val_epoch_freq: 1
 
-model: 
-  name: Superpoint_MAE
-  args: 
+model:
+  name: Superpoint_MAE_Pretrain
+  args:
     mask_level: 1
     mask_ratio: 0.6
     feature_dim: 11

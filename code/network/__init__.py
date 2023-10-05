@@ -11,5 +11,6 @@ def register_network(network_name):
 
 
 # from . import minkunet
-from . import Superpoint_MAE
 # from . import lightvit
+from . import Superpoint_MAE_Pretrain
+from . import Superpoint_MAE_Finetune

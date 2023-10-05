@@ -90,7 +90,6 @@ def train(local_rank=0, world_size=1, args=None):
     logger.info(f"Train dataloader: {len(train_dataloader)}\nVal dataloader: {len(val_dataloader)}")
 
     # Model
-    # print(train_dataset.num_channel, train_dataset.num_train_classes)
     network = NETWORKS[args.model['name']](args.model['args'])
     network = network.to(device)
     '''
@@ -159,6 +158,7 @@ def train(local_rank=0, world_size=1, args=None):
                         scheduler=scheduler,
                         val_loader=val_dataloader,
                         writer=writer)
+        exit()
         # Validate
         # if epoch_idx % args.val_epoch_freq == 0:
         #     validate(network,
@@ -190,11 +190,11 @@ def train_one_epoch(model,
                     val_loader=None,
                     writer=None):
     model.train()
-    for i, data in enumerate(train_loader):
+    for i, data in enumerate(tqdm(train_loader)):
         optimizer.zero_grad()
         inputs, labels, extras = data[0], data[1], data[2]
-        rec_x, rec_x_indices, loss = model(inputs, extras)
-        exit()
+        output = model(inputs, extras)
+        continue
         loss.backward()
         optimizer.step()
         if get_world_size() > 1:
