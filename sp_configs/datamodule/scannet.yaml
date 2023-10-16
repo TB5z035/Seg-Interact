@@ -65,7 +65,8 @@ v_edge_hf: []  # vertical edge features used for training
 
 # Based on SPG: https://arxiv.org/pdf/1711.09869.pdf
 voxel: 0.03
-knn: 45
+# knn: 45
+knn: 80
 knn_r: 2
 knn_step: -1
 knn_min_search: 25
