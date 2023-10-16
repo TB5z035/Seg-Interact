@@ -527,9 +527,9 @@ class Superpoint_MAE(nn.Module):
         full_features = extras['full_features']
         full_super_indices_10 = extras['full_super_indices_10']
         full_super_indices_21 = extras['full_super_indices_21']
+        print('sp1_num:', len(full_super_indices_21[0]))
         sp1_coords = extras['sp1_coords']
         assert len(full_features) and len(sp1_coords) == 1, 'only batch size: 1 is currently supported'
-
         batch_token_embed, batch_pos_embed = self.prep_embed(full_features, sp1_coords, full_super_indices_10,
                                                              full_super_indices_21)
         x = self.encoder(batch_token_embed, batch_pos_embed)

@@ -47,7 +47,6 @@ def train(local_rank=0, world_size=1, args=None):
     torch.cuda.set_device(local_rank)
     logger.info(f"torch.distributed initialized: {dist.is_initialized()}")
     writer = init_logger(args)
-
     # Dataset
     if hasattr(args, 'datamodule'):
         from omegaconf import OmegaConf
@@ -72,7 +71,6 @@ def train(local_rank=0, world_size=1, args=None):
                                                                         shuffle=True)
     else:
         train_sampler = None
-
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=args.train_batch_size,
@@ -158,7 +156,7 @@ def train(local_rank=0, world_size=1, args=None):
                         scheduler=scheduler,
                         val_loader=val_dataloader,
                         writer=writer)
-        exit()
+
         # Validate
         # if epoch_idx % args.val_epoch_freq == 0:
         #     validate(network,
@@ -195,7 +193,8 @@ def train_one_epoch(model,
         inputs, labels, extras = data[0], data[1], data[2]
         output = model(inputs, extras)
         continue
-        loss.backward()
+        # loss = torch.nn.CrossEntropyLoss(ignore_index=255)
+        # loss.backward()
         optimizer.step()
         if get_world_size() > 1:
             dist.all_reduce(loss, op=dist.ReduceOp.SUM)

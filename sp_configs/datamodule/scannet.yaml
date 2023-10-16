@@ -3,7 +3,7 @@ defaults:
 
 sp_base: sp_scannet
 data_dir: /data/discover-07/share/datasets
-save_processed_root: /data/discover-08/caiz/datasets
+save_processed_root: /data/xuj/dataset
 ignore_label: 255
 stage: scans
 
@@ -85,7 +85,6 @@ graph_se_min: 20
 graph_cycles: 3
 graph_margin: 0.2
 graph_chunk: [1e6, 1e5, 1e5]  # reduce if CUDA memory errors
-
 # Preprocessing
 pre_transform:
     - transform: DataTo
