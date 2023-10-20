@@ -666,6 +666,7 @@ class sp_scannet(SuperpointBase):
         processes = available_cpu_count() if processes < 1 else processes
 
         coords, colors, _, labels = self._load_ply(scene_path=scene_dir)
+
         colors = np.delete(colors, 3, axis=1)
         coords, colors, labels = torch.from_numpy(np.float32(coords)), torch.from_numpy(
             np.uint8(colors)), torch.from_numpy(np.int64(labels))
@@ -679,6 +680,43 @@ class sp_scannet(SuperpointBase):
         data = Data(**data_dict)
 
         return data
+
+    def _load_ply(self, scene_path):
+        fast_scene_files = [i for i in os.listdir(scene_path) if i.endswith('_scene.npy')]
+        fast_label_files = [i for i in os.listdir(scene_path) if i.endswith('_labels.npy')]
+        if len(fast_scene_files) < 1:
+            logger.warning(f'FastLoad fails: No processed npy files found in {scene_path}')
+            return ScannetDataset._load_ply(self, scene_path)
+        assert len(fast_scene_files) == 1, f'Found {len(fast_scene_files)} scene files in {scene_path}'
+        assert len(fast_label_files) == 1, f'Found {len(fast_label_files)} label files in {scene_path}'
+        scene_id = re.findall(r'(.*)_scene.npy', fast_scene_files[0])[0]
+
+        scene_obj = np.load(os.path.join(scene_path, f'{scene_id}_scene.npy'), allow_pickle=True)[None][0]
+        coords = scene_obj['coords']
+        colors = scene_obj['colors']
+        faces = scene_obj['faces']
+
+        if f'{scene_id}_labels.npy' in fast_label_files:
+            labels = np.load(os.path.join(scene_path, f'{scene_id}_labels.npy'), allow_pickle=True)[None][0]
+        else:
+            labels = None
+        return coords, colors, faces, self._convert_labels(labels)
+
+    def _convert_labels(self, labels=None):
+        """
+        Convert labels to train ids
+
+        labels: numpy.ndarray (N,) uint16 or None
+
+        Returns:
+            labels: (N,) uint16
+        """
+        if labels is None:
+            return None
+        train_labels = np.ones_like(labels) * 255
+        for l in ScannetDataset.LABEL_PROTOCOL:
+            train_labels[labels == l.id] = l.train_id
+        return train_labels
 
     def __len__(self):
         """Number of clouds in the dataset."""
@@ -746,8 +784,8 @@ class superpoint_scannt(FastLoad):
             0].scattering, nag[0].verticality, nag[0].elevation
         full_super_indices_10 = nag.get_super_index(1, 0)
         full_super_indices_21 = nag.get_super_index(2, 1)
-        full_super_indices_32 = nag.get_super_index(3, 2)
-        sp1_coords = nag[1].pos
+        full_super_indices_20 = nag.get_super_index(2, 0)
+        sp2_coords = nag[2].pos
 
         extras = {
             'scene_id': scene_id,
@@ -758,18 +796,18 @@ class superpoint_scannt(FastLoad):
             'elevation': elevation,
             'full_super_indices_10': full_super_indices_10,
             'full_super_indices_21': full_super_indices_21,
-            'full_super_indices_32': full_super_indices_32,
-            'sp1_coords': sp1_coords
+            'full_super_indices_20': full_super_indices_20,
+            'sp2_coords': sp2_coords
         }
 
         (coords, _, colors), labels, _ = self.transform((coords, None, colors[:, :3]), labels, extras)
         return (coords, colors), labels, extras
 
-    def __getitem__(self, index) -> dict:
+    def __getitem__(self, index):
         (coords, colors), labels, extras = self._prepare_item(index)
-        linearity, planarity, scattering, verticality, elevation, full_super_indices_10, full_super_indices_21, full_super_indices_32 = extras[
+        linearity, planarity, scattering, verticality, elevation, full_super_indices_10, full_super_indices_21, full_super_indices_20 = extras[
             'linearity'], extras['planarity'], extras['scattering'], extras['verticality'], extras['elevation'], extras[
-                'full_super_indices_10'], extras['full_super_indices_21'], extras['full_super_indices_32']
+                'full_super_indices_10'], extras['full_super_indices_21'], extras['full_super_indices_20']
 
         coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
         colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
@@ -778,8 +816,8 @@ class superpoint_scannt(FastLoad):
             full_super_indices_10) != torch.Tensor else full_super_indices_10
         full_super_indices_21 = torch.from_numpy(full_super_indices_21) if type(
             full_super_indices_21) != torch.Tensor else full_super_indices_21
-        full_super_indices_32 = torch.from_numpy(full_super_indices_32) if type(
-            full_super_indices_32) != torch.Tensor else full_super_indices_32
+        full_super_indices_20 = torch.from_numpy(full_super_indices_20) if type(
+            full_super_indices_20) != torch.Tensor else full_super_indices_20
 
         full_features = torch.concat((coords, colors, linearity, planarity, scattering, verticality, elevation), dim=1)
         full_features = torch.from_numpy(full_features) if type(full_features) != torch.Tensor else full_features

@@ -111,6 +111,7 @@ class RandomDropout(Transform):
             extra['verticality'] = extra['verticality'][inds]
             extra['elevation'] = extra['elevation'][inds]
             extra['full_super_indices_10'] = extra['full_super_indices_10'][inds]
+            extra['full_super_indices_20'] = extra['full_super_indices_20'][inds]
         return (coords[inds], faces, feats[inds]), labels[inds], extra
 
 
@@ -167,6 +168,7 @@ class PointCloudSizeLimit(Transform):
             extra['verticality'] = extra['verticality'][inds]
             extra['elevation'] = extra['elevation'][inds]
             extra['full_super_indices_10'] = extra['full_super_indices_10'][inds]
+            extra['full_super_indices_20'] = extra['full_super_indices_20'][inds]
         return (coords[inds], faces, feats[inds]), labels[inds], extra
 
 

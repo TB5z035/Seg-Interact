@@ -207,30 +207,33 @@ class Embed_and_Prep(nn.Module):
         batch_token_embed = self.token_embed(full_features, full_super_indices_10)
         batch_pos_embed = self.pos_embed(sp_coords)
 
-        _, _, batch_mask_indices, batch_remain_indices = self.mask_token_embed(batch_token_embed)
-        batch_remain_token_embed = self.pad_embed(batch_token_embed, full_super_indices_21, batch_remain_indices)
-        batch_mask_token_embed = self.pad_embed(batch_token_embed, full_super_indices_21, batch_mask_indices)
-        batch_remain_pos_embed = self.pad_embed(batch_pos_embed,
-                                                full_super_indices_21,
-                                                batch_remain_indices,
-                                                record_mode='remain')
-        batch_mask_pos_embed = self.pad_embed(batch_pos_embed,
-                                              full_super_indices_21,
-                                              batch_mask_indices,
-                                              record_mode='mask')
+        batch_mask_token_embed, batch_remain_token_embed, batch_mask_indices, batch_remain_indices = self.mask_token_embed(
+            batch_token_embed)
 
-        if isinstance(batch_remain_token_embed, list):
-            batch_remain_token_embed = torch.unsqueeze(batch_remain_token_embed[0], dim=0)
-        if isinstance(batch_mask_token_embed, list):
-            batch_mask_token_embed = torch.unsqueeze(batch_mask_token_embed[0], dim=0)
-        if isinstance(batch_remain_pos_embed, list):
-            batch_remain_pos_embed = torch.unsqueeze(batch_remain_pos_embed[0], dim=0)
-        if isinstance(batch_mask_pos_embed, list):
-            batch_mask_pos_embed = torch.unsqueeze(batch_mask_pos_embed[0], dim=0)
         if isinstance(batch_remain_indices, list):
             batch_remain_indices = torch.unsqueeze(batch_remain_indices[0], dim=0)
         if isinstance(batch_mask_indices, list):
             batch_mask_indices = torch.unsqueeze(batch_mask_indices[0], dim=0)
+        if isinstance(batch_pos_embed, list):
+            batch_pos_embed = torch.unsqueeze(batch_pos_embed[0], dim=0)
+        if isinstance(batch_remain_token_embed, list):
+            batch_remain_token_embed = torch.unsqueeze(batch_remain_token_embed[0], dim=0)
+        if isinstance(batch_mask_token_embed, list):
+            batch_mask_token_embed = torch.unsqueeze(batch_mask_token_embed[0], dim=0)
+
+        batch_remain_pos_embed = batch_pos_embed[:, batch_remain_indices[0]]
+        batch_mask_pos_embed = batch_pos_embed[:, batch_mask_indices[0]]
+
+        # batch_remain_token_embed = self.pad_embed(batch_token_embed, full_super_indices_21, batch_remain_indices)
+        # batch_mask_token_embed = self.pad_embed(batch_token_embed, full_super_indices_21, batch_mask_indices)
+        # batch_remain_pos_embed = self.pad_embed(batch_pos_embed,
+        #                                         full_super_indices_21,
+        #                                         batch_remain_indices,
+        #                                         record_mode='remain')
+        # batch_mask_pos_embed = self.pad_embed(batch_pos_embed,
+        #                                       full_super_indices_21,
+        #                                       batch_mask_indices,
+        #                                       record_mode='mask')
 
         return (batch_remain_token_embed, batch_mask_token_embed), (batch_remain_pos_embed,
                                                                     batch_mask_pos_embed), (batch_remain_indices,
@@ -263,7 +266,7 @@ class MLP(nn.Module):
         return x
 
 
-class Attention(nn.Module):
+class Local_Self_Attention(nn.Module):
 
     def __init__(self,
                  input_dim: int,
@@ -286,7 +289,7 @@ class Attention(nn.Module):
 
     def forward(self, x):
         B, N, P, C = x.shape
-        # qkv.shape = [3, B, N, H, P, C/H]
+        # qkv.shape = [B, N, P, 3, H, C/H] -> [3, B, N, H, P, C/H]
         qkv = self.qkv(x).reshape(B, N, P, 3, self.head_num, C // self.head_num).permute(3, 0, 1, 4, 2, 5)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
@@ -301,19 +304,58 @@ class Attention(nn.Module):
         return x
 
 
-class Block(nn.Module):
+class Global_Self_Attention(nn.Module):
 
     def __init__(self,
                  input_dim: int,
                  head_num: int,
-                 mlp_ratio=4.,
-                 qkv_bias=False,
-                 qk_scale=None,
-                 dropout_prob=0.,
-                 attn_drop=0.,
-                 droppath_prob=0.,
-                 act_layer=nn.GELU,
-                 norm_layer=nn.LayerNorm):
+                 attn_drop: float = 0.,
+                 proj_drop: float = 0.,
+                 qkv_bias: bool = False,
+                 qk_scale: bool = None):
+
+        super().__init__()
+        self.head_num = head_num
+        head_dim = input_dim // self.head_num
+        self.qkv = nn.Linear(input_dim, input_dim * 3, bias=qkv_bias)
+        self.attn_drop = nn.Dropout(attn_drop)
+
+        # TODO init scale
+        self.scale = qk_scale or head_dim**1  #-0.5
+        self.proj = nn.Linear(input_dim, input_dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+    def forward(self, x):
+        B, N, C = x.shape
+        # qkv.shape = [B, N, 3, H, C/H] -> [3, B, N, H, C/H]
+        qkv = self.qkv(x).reshape(B, N, 3, self.head_num, C // self.head_num).permute(2, 0, 1, 3, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(2, 3).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+
+
+class Block(nn.Module):
+
+    def __init__(
+        self,
+        input_dim: int,
+        head_num: int,
+        mlp_ratio=4.,
+        qkv_bias=False,
+        qk_scale=None,
+        dropout_prob=0.,
+        attn_drop=0.,
+        droppath_prob=0.,
+        act_layer=nn.GELU,
+        norm_layer=nn.LayerNorm,
+    ):
 
         super().__init__()
         self.norm1 = norm_layer(input_dim)
@@ -322,16 +364,22 @@ class Block(nn.Module):
 
         self.drop_path = DropPath(drop_prob=droppath_prob) if droppath_prob > 0. else nn.Identity()
         self.mlp = MLP(input_dim=input_dim, hidden_dim=mlp_hidden_dim, act_layer=act_layer, dropout_prob=dropout_prob)
-        self.local_attn = Attention(input_dim=input_dim,
-                                    head_num=head_num,
-                                    qkv_bias=qkv_bias,
-                                    qk_scale=qk_scale,
-                                    attn_drop=attn_drop,
-                                    proj_drop=dropout_prob)
+        self.global_attn = Global_Self_Attention(input_dim=input_dim,
+                                                 head_num=head_num,
+                                                 qkv_bias=qkv_bias,
+                                                 qk_scale=qk_scale,
+                                                 attn_drop=attn_drop,
+                                                 proj_drop=dropout_prob)
+        self.local_attn = Local_Self_Attention(input_dim=input_dim,
+                                               head_num=head_num,
+                                               qkv_bias=qkv_bias,
+                                               qk_scale=qk_scale,
+                                               attn_drop=attn_drop,
+                                               proj_drop=dropout_prob)
 
     def forward(self, x):
         x = self.norm1(x)
-        x = self.local_attn(x)
+        x = self.global_attn(x)
         x = x + self.drop_path(x)
         x = self.norm2(x)
         x = self.mlp(x)
@@ -426,11 +474,15 @@ class MAE_Decoder(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def forward(self, full_x, full_pos, pad_limit):
+    def forward(self, full_x, full_pos, pad_limit, sep):
         for _, block in enumerate(self.blocks):
             full_x = block(full_x + full_pos)
-        rec_remain_x = self.norm(full_x[:, :, :pad_limit])
-        rec_mask_x = self.norm(full_x[:, :, pad_limit:])
+
+        rec_x = self.norm(full_x)
+        rec_remain_x = rec_x[:, :sep]
+        rec_mask_x = rec_x[:, sep:]
+        # rec_remain_x = self.norm(full_x[:, :, :pad_limit])
+        # rec_mask_x = self.norm(full_x[:, :, pad_limit:])
         return rec_remain_x, rec_mask_x
 
 
@@ -485,41 +537,61 @@ class Superpoint_MAE(nn.Module):
         full_features = extras['full_features']
         full_super_indices_10 = extras['full_super_indices_10']
         full_super_indices_21 = extras['full_super_indices_21']
-        sp1_coords = extras['sp1_coords']
-        assert len(full_features) and len(sp1_coords) == 1, 'only batch size: 1 is currently supported'
-        batch_token_embed, batch_pos_embed, indices = self.prep_embed(full_features, sp1_coords, full_super_indices_10,
+        full_super_indices_20 = extras['full_super_indices_20']
+        sp_coords = extras['sp2_coords']
+
+        assert len(full_features) and len(sp_coords) == 1, 'only batch size: 1 is currently supported'
+        batch_token_embed, batch_pos_embed, indices = self.prep_embed(full_features, sp_coords, full_super_indices_20,
                                                                       full_super_indices_21)
 
-        batch_remain_token_embed = batch_token_embed[0]
+        batch_remain_token_embed, batch_mask_token_embed = batch_token_embed[0], batch_token_embed[1]
         batch_remain_pos_embed, batch_mask_pos_embed = batch_pos_embed[0], batch_pos_embed[1]
 
         remain_x = self.encoder(batch_remain_token_embed, batch_remain_pos_embed)
 
-        B, N_2, P, C = remain_x.shape
-        mask_x = torch.zeros((B, N_2, P, C)).cuda()
-        full_x = torch.cat((remain_x, mask_x), dim=2)
-        full_pos = torch.cat((batch_remain_pos_embed, batch_mask_pos_embed), dim=2)
+        B, N_r, C = remain_x.shape
+        _, N_m, _ = batch_mask_pos_embed.shape
+        mask_x = torch.zeros((B, N_m, C)).cuda()
+        full_x = torch.cat((remain_x, mask_x), dim=1)
+        full_pos = torch.cat((batch_remain_pos_embed, batch_mask_pos_embed), dim=1)
 
-        rec_remain_x, rec_mask_x = self.decoder(full_x, full_pos, self.pad_limit)
+        rec_remain_x, rec_mask_x = self.decoder(full_x, full_pos, self.pad_limit, sep=N_r)
 
-        rec_remain_x = self.prep_embed.remove_padding(rec_remain_x, full_super_indices_21, indices[0])
-        rec_mask_x = self.prep_embed.remove_padding(rec_mask_x, full_super_indices_21, indices[1])
-
-        rec_full_x = torch.cat((rec_remain_x, rec_mask_x), dim=0)
+        rec_full_x = torch.cat((rec_remain_x, rec_mask_x), dim=1)
 
         rec_x_coords = self.projector(rec_full_x)
 
-        rec_x_indices = torch.cat(
-            (self.prep_embed.batch_convert_remain_indices[0], self.prep_embed.batch_convert_mask_indices[0]), dim=0)
-        sort = torch.argsort(rec_x_indices)
-
+        rec_x_indices = torch.cat((indices[0], indices[1]), dim=1)
+        sort = torch.squeeze(torch.argsort(rec_x_indices, dim=1))
         assert len(rec_x_coords) == len(rec_x_indices), f'{rec_x_coords.shape, rec_x_indices.shape}'
+        rec_x_coords = torch.squeeze(rec_x_coords)[sort]
+        rec_x_indices = torch.squeeze(rec_x_indices)[sort]
 
-        rec_x_coords = rec_x_coords[sort]
-        rec_x_indices = rec_x_indices[sort]
+        # B, N_2, P, C = remain_x.shape
+        # mask_x = torch.zeros((B, N_2, P, C)).cuda()
+        # full_x = torch.cat((remain_x, mask_x), dim=2)
+        # full_pos = torch.cat((batch_remain_pos_embed, batch_mask_pos_embed), dim=2)
+
+        # rec_remain_x, rec_mask_x = self.decoder(full_x, full_pos, self.pad_limit)
+
+        # rec_remain_x = self.prep_embed.remove_padding(rec_remain_x, full_super_indices_21, indices[0])
+        # rec_mask_x = self.prep_embed.remove_padding(rec_mask_x, full_super_indices_21, indices[1])
+
+        # rec_full_x = torch.cat((rec_remain_x, rec_mask_x), dim=0)
+
+        # rec_x_coords = self.projector(rec_full_x)
+
+        # rec_x_indices = torch.cat(
+        #     (self.prep_embed.batch_convert_remain_indices[0], self.prep_embed.batch_convert_mask_indices[0]), dim=0)
+        # sort = torch.argsort(rec_x_indices)
+
+        # assert len(rec_x_coords) == len(rec_x_indices), f'{rec_x_coords.shape, rec_x_indices.shape}'
+
+        # rec_x_coords = rec_x_coords[sort]
+        # rec_x_indices = rec_x_indices[sort]
 
         # Loss
-        target = sp1_coords[0]
+        target = sp_coords[0]
         dist1, dist2, _, _ = self.lossf(target.unsqueeze(0).cuda(), rec_x_coords.unsqueeze(0))
         loss = torch.mean(dist1**2) + torch.mean(dist2**2)
         return rec_x_coords, rec_x_indices, loss
