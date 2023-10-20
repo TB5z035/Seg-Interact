@@ -107,7 +107,6 @@ def train(local_rank=0, world_size=1, args=None):
                         'full_features': tuple(torch.tensor(N, 10), ...) -> (x, y, z, r, g, b, lin, pla, sca, ele)}
 
     '''
-
     # (coords, colors), labels, extras = data
     # # print(coords.shape)
     # print(full_features.shape)

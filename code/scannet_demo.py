@@ -23,6 +23,13 @@ labels = nag[0].y.argmax(1)
 level = 3
 sup_inds = nag.get_super_index(level, 0)
 sup_max = num_points[level]
+max_x = 0
+for i in range(len(dataset)):
+    nag = dataset[i]
+    x = int(max(nag.get_sub_size(2, 1)))
+    max_x = max(x, max_x)
+    print('x:', x, ', max:', max_x)
+exit()
 '''
 mode_num = []
 percentage = []

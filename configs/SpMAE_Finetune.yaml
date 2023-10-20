@@ -9,7 +9,7 @@ model:
     feature_dim: 11
     pos_embed_hidden_dim: 128
     token_embed_dim: 128
-    token_pad_limit: 110
+    token_pad_limit: 169
     head_num: 4
     MLP_ratio: 1.
     dropout_prob: 0.

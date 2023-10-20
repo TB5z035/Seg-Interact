@@ -748,3 +748,77 @@ class sp_scannet(SuperpointBase):
         nag = nag if self.transform is None else self.transform(nag)
 
         return nag
+
+@register_dataset('superpoint_scannet')
+class superpoint_scannt(FastLoad):
+
+    def __init__(self, sp_cls: object, **kwargs):
+        self.sp_cls = sp_cls
+        super().__init__(**kwargs)
+
+    def _collate_fn(self, batch):
+        inputs, labels, extras = list(zip(*batch))
+        coords, colors = list(zip(*inputs))
+        bextras = {}
+        for key in extras[0].keys():
+            bextras[key] = tuple(extras[extra_idx]['scene_id']
+                                 for extra_idx in range(len(extras))
+                                 for _ in range(len(labels[extra_idx]))) if key == 'scene_id' else tuple(
+                                     [extra[key] for extra in extras])
+
+        indices = torch.cat([torch.ones_like(c[..., :1]) * i for i, c in enumerate(coords)], 0)
+        bcoords = torch.cat((indices, torch.cat(coords, 0)), -1)
+        bcolors = torch.cat(colors, 0)
+        blabels = torch.cat(labels, 0)
+
+        return (bcoords, bcolors), blabels, bextras
+
+    def _prepare_item(self, index):
+        scene_id = self.scene_ids[index]
+        sp_scene_index = self.sp_cls.cloud_ids.index(scene_id)
+        nag = self.sp_cls[sp_scene_index]
+
+        coords, colors, labels = nag[0].pos.numpy(), nag[0].rgb.numpy(), nag[0].y.argmax(1).numpy()
+        linearity, planarity, scattering, verticality, elevation = nag[0].linearity, nag[0].planarity, nag[
+            0].scattering, nag[0].verticality, nag[0].elevation
+        full_super_indices_10 = nag.get_super_index(1, 0)
+        full_super_indices_21 = nag.get_super_index(2, 1)
+        full_super_indices_32 = nag.get_super_index(3, 2)
+        sp1_coords = nag[1].pos
+
+        extras = {
+            'scene_id': scene_id,
+            'linearity': linearity,
+            'planarity': planarity,
+            'scattering': scattering,
+            'verticality': verticality,
+            'elevation': elevation,
+            'full_super_indices_10': full_super_indices_10,
+            'full_super_indices_21': full_super_indices_21,
+            'full_super_indices_32': full_super_indices_32,
+            'sp1_coords': sp1_coords
+        }
+
+        (coords, _, colors), labels, _ = self.transform((coords, None, colors[:, :3]), labels, extras)
+        return (coords, colors), labels, extras
+
+    def __getitem__(self, index) -> dict:
+        (coords, colors), labels, extras = self._prepare_item(index)
+        linearity, planarity, scattering, verticality, elevation, full_super_indices_10, full_super_indices_21, full_super_indices_32 = extras[
+            'linearity'], extras['planarity'], extras['scattering'], extras['verticality'], extras['elevation'], extras[
+                'full_super_indices_10'], extras['full_super_indices_21'], extras['full_super_indices_32']
+
+        coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
+        colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
+        labels = torch.from_numpy(labels.astype(np.int64)) if type(labels) != torch.Tensor else labels
+        full_super_indices_10 = torch.from_numpy(full_super_indices_10) if type(
+            full_super_indices_10) != torch.Tensor else full_super_indices_10
+        full_super_indices_21 = torch.from_numpy(full_super_indices_21) if type(
+            full_super_indices_21) != torch.Tensor else full_super_indices_21
+        full_super_indices_32 = torch.from_numpy(full_super_indices_32) if type(
+            full_super_indices_32) != torch.Tensor else full_super_indices_32
+
+        full_features = torch.concat((coords, colors, linearity, planarity, scattering, verticality, elevation), dim=1)
+        full_features = torch.from_numpy(full_features) if type(full_features) != torch.Tensor else full_features
+
+        return (coords, colors), labels, extras | {'full_features': full_features}
