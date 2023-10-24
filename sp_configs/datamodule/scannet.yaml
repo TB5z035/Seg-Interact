@@ -3,7 +3,7 @@ defaults:
 
 sp_base: sp_scannet
 data_dir: /data/discover-07/share/datasets
-save_processed_root: /data/discover-08/caiz/datasets
+save_processed_root:  /data/discover-08/caiz/datasets # /data/discover-08/caiz/testing
 ignore_label: 255
 stage: scans
 

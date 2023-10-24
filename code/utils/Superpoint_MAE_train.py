@@ -158,7 +158,7 @@ def train(local_rank=0, world_size=1, args=None):
                         scheduler=scheduler,
                         val_loader=val_dataloader,
                         writer=writer)
-        exit()
+        
         # Validate
         # if epoch_idx % args.val_epoch_freq == 0:
         #     validate(network,
@@ -193,7 +193,7 @@ def train_one_epoch(model,
     for i, data in enumerate(tqdm(train_loader)):
         optimizer.zero_grad()
         inputs, labels, extras = data[0], data[1], data[2]
-        output = model(inputs, extras)
+        _, _, loss = model(inputs, extras)
         continue
         loss.backward()
         optimizer.step()
