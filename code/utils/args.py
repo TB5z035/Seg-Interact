@@ -109,12 +109,13 @@ def get_args():
     if args.visualize:
         assert args.labeling_inference, 'labeling inference must be performed in order to use visualization functions'
     if args.resume:
-        resume_path = args.resume
         import torch
-        cfg = yaml.safe_load(torch.load(args.resume, map_location='cpu')['args'])
-        parser.set_defaults(**cfg)
-        args = parser.parse_args(remaining)
-        args.resume = resume_path
+        if torch.load(args.resume, map_location='cpu')['args'] != None:
+            resume_path = args.resume
+            cfg = yaml.safe_load(torch.load(args.resume, map_location='cpu')['args'])
+            parser.set_defaults(**cfg)
+            args = parser.parse_args(remaining)
+            args.resume = resume_path
 
     # Cache the args as a text string to save them in the output dir later
     args_dict = args.__dict__.copy()

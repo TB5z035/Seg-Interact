@@ -19,6 +19,7 @@ from ..optimizer import OPTIMIZERS, SCHEDULERS
 from .args import get_args
 from .misc import get_device, init_directory, init_logger, to_device, get_local_rank, get_world_size, save_checkpoint
 from .validate import validate, validate_SpMAE
+from ..network.Superpoint_DN_DETR import build_other_dn_func
 
 device = get_device()
 logger = logging.getLogger('train')
@@ -92,6 +93,8 @@ def train(local_rank=0, world_size=1, args=None):
     # Model
     network = NETWORKS[args.model['name']](args.model['args'])
     network = network.to(device)
+    criterion, postprocessors = build_other_dn_func(args)
+    criterion = criterion.to(device)
 
     # Load pretrained model
     if args.train_from:

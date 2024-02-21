@@ -414,7 +414,7 @@ class SuperpointBase(InMemoryDataset):
         # computation
         hash_dir = self.pre_transform_hash
         stage_dir = osp.join(self.processed_dir, self.stage, hash_dir)
-
+        
         if not osp.exists(stage_dir):
             os.makedirs(stage_dir, exist_ok=True)
 
@@ -435,7 +435,7 @@ class SuperpointBase(InMemoryDataset):
             os.makedirs(osp.dirname(cloud_path), exist_ok=True)
         else:
             os.makedirs(osp.dirname(cloud_path), exist_ok=True)
-
+        
         # Read the raw cloud corresponding to the final processed
         # `cloud_path` and convert it to a Data object
         raw_path = self.processed_to_raw_path(cloud_path)

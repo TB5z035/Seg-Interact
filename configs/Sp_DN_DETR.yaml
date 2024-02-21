@@ -5,21 +5,56 @@ train_type: pretrain
 train_from: 
 
 model:
-  name: Superpoint_MAE_Pretrain
+  name: Superpoint_DN_DETR
   args:
-    mask_level: 1
-    mask_ratio: 0.6
     feature_dim: 11
     pos_embed_hidden_dim: 128
-    token_embed_dim: 128
-    token_pad_limit: 80
-    head_num: 4
-    MLP_ratio: 1.
-    dropout_prob: 0.
-    droppath_prob: 0.
-    encoder_depth: 5
-    decoder_depth: 1
     
+    
+    MLP_ratio: 1.
+    
+    droppath_prob: 0.
+    
+    num_classes: 21
+    num_select: 
+    focal_alpha: 
+    random_refpoints_xy:
+    
+    iter_update: True
+    
+    dilation:
+    
+    
+    # Position Encoding
+    position_embedding: sine
+    temperature: 20
+
+    # Backbone
+    backbone: resnet50
+    lr_backbone: True   # bool
+    masks: True         # bool
+    dilation: False     # bool
+
+    # Transformer
+    token_embed_dim: 128
+    dropout_prob: 0.
+    head_num: 4
+    num_queries: 600    # max num of points/sp in level 1
+    dim_feedforward: 512
+    encoder_depth: 6
+    decoder_depth: 6
+    pre_norm: False     # bool
+    query_dim: 2
+    transformer_activation: relu
+    num_patterns: 
+
+    # Loss
+    cls_loss_coef:
+    bbox_loss_coef:
+    giou_loss_coef:
+    mask_loss_coef:
+    dice_loss_coef:
+    aux_loss: True      # bool
 
 train_dataset: 
   name: superpoint_scannet

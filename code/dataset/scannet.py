@@ -785,7 +785,9 @@ class superpoint_scannt(FastLoad):
         full_super_indices_10 = nag.get_super_index(1, 0)
         full_super_indices_21 = nag.get_super_index(2, 1)
         full_super_indices_20 = nag.get_super_index(2, 0)
-        sp2_coords = nag[2].pos
+        sp1_coords, sp2_coords, sp2_edge_index, sp2_edge_attr, sp2_attr = nag[1].pos, nag[2].pos, nag[
+            2].edge_index, nag[2].edge_attr, (nag[2].log_length, nag[2].log_size, nag[2].log_surface, nag[2].log_volume,
+                                              nag[2].normal)
 
         extras = {
             'scene_id': scene_id,
@@ -797,7 +799,11 @@ class superpoint_scannt(FastLoad):
             'full_super_indices_10': full_super_indices_10,
             'full_super_indices_21': full_super_indices_21,
             'full_super_indices_20': full_super_indices_20,
-            'sp2_coords': sp2_coords
+            'sp1_coords': sp1_coords,
+            'sp2_coords': sp2_coords,
+            'sp2_edge_index': sp2_edge_index,
+            'sp2_edge_attr': sp2_edge_attr,
+            'sp2_attr': sp2_attr
         }
 
         (coords, _, colors), labels, _ = self.transform((coords, None, colors[:, :3]), labels, extras)
@@ -805,9 +811,10 @@ class superpoint_scannt(FastLoad):
 
     def __getitem__(self, index):
         (coords, colors), labels, extras = self._prepare_item(index)
-        linearity, planarity, scattering, verticality, elevation, full_super_indices_10, full_super_indices_21, full_super_indices_20 = extras[
+        linearity, planarity, scattering, verticality, elevation, full_super_indices_10, full_super_indices_21, full_super_indices_20, sp2_attr = extras[
             'linearity'], extras['planarity'], extras['scattering'], extras['verticality'], extras['elevation'], extras[
-                'full_super_indices_10'], extras['full_super_indices_21'], extras['full_super_indices_20']
+                'full_super_indices_10'], extras['full_super_indices_21'], extras['full_super_indices_20'], extras[
+                    'sp2_attr']
 
         coords = torch.from_numpy(coords) if type(coords) != torch.Tensor else coords
         colors = torch.from_numpy(colors) if type(colors) != torch.Tensor else colors
@@ -820,6 +827,8 @@ class superpoint_scannt(FastLoad):
             full_super_indices_20) != torch.Tensor else full_super_indices_20
 
         full_features = torch.concat((coords, colors, linearity, planarity, scattering, verticality, elevation), dim=1)
+        sp2_attr = torch.concat(sp2_attr, dim=1)
         full_features = torch.from_numpy(full_features) if type(full_features) != torch.Tensor else full_features
+        sp2_attr = torch.from_numpy(sp2_attr) if type(sp2_attr) != torch.Tensor else sp2_attr
 
-        return (coords, colors), labels, extras | {'full_features': full_features}
+        return (coords, colors), labels, extras | {'full_features': full_features, 'sp2_attr': sp2_attr}

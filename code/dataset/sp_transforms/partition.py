@@ -228,6 +228,8 @@ class CutPursuitPartition(Transform):
 
         # Create the NAG object
         nag = NAG(data_list)
+        print(nag[0].edge_attr.shape, nag[0].edge_index.shape)
+        exit()
 
         return nag
 

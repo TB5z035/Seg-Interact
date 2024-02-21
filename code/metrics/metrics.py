@@ -101,3 +101,36 @@ class Acc(BaseMetric):
         logger.info(f'Overall Accuracy: {accuracy:.4f}')
         if writer is not None:
             writer.add_scalar(f'{name_prefix}{self.NAME}/Overall', accuracy, global_iter)
+
+
+@register_metric("Accuracy")
+class Acc(BaseMetric):
+    NAME = 'Accuracy'
+
+    def __init__(self, num_class, ignore_label, class_names, *args, **kwargs) -> None:
+        self.num_class = num_class
+        self.ignore_label = ignore_label
+        self.hist_stat = {'correct': 0, 'total': 0}
+        self.class_names = class_names
+
+    def record(self, pred, target):
+        """
+        Args:
+        """
+        ignore_label = self.ignore_label
+        flatten_pred = pred.flatten()
+        flatten_target = target.flatten()
+        mask = (flatten_target != ignore_label) & (flatten_pred != ignore_label)
+        flatten_target, flatten_pred = flatten_target[mask], flatten_pred[mask]
+        self.hist_stat['correct'] += len(flatten_target[flatten_target == flatten_pred])
+        self.hist_stat['total'] += len(flatten_target)
+
+    def calc(self):
+        accuracy = self.hist_stat['correct'] / self.hist_stat['total']
+        return accuracy
+
+    def log(self, logger, writer=None, global_iter=None, name_prefix=''):
+        accuracy = self.calc()
+        logger.info(f'Overall Accuracy: {accuracy:.4f}')
+        if writer is not None:
+            writer.add_scalar(f'{name_prefix}{self.NAME}/Overall', accuracy, global_iter)

@@ -5,7 +5,7 @@ train_type: pretrain
 train_from: 
 
 model:
-  name: Superpoint_MAE_Pretrain
+  name: Superpoint_MAE_DAB_Pretrain
   args:
     mask_level: 1
     mask_ratio: 0.6
@@ -17,8 +17,15 @@ model:
     MLP_ratio: 1.
     dropout_prob: 0.
     droppath_prob: 0.
-    encoder_depth: 5
-    decoder_depth: 1
+    encoder_depth: 6
+    
+
+    # DAB Transformer Decoder
+    ffn_dim: 512
+    decoder_depth: 6
+    query_dim: 2
+    query_num: 3200
+    group_size: 10
     
 
 train_dataset: 

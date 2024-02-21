@@ -168,6 +168,65 @@ class Embed_and_Prep(nn.Module):
 
         return batch_tokens
 
+    def select_embed(self,
+                     batch_token_embed,
+                     higher_full_super_indices,
+                     edge_index,
+                     sp_coords,
+                     batch_indices=None,
+                     record_mode=''):
+        assert record_mode in ['', 'remain', 'mask', 'full'], 'check select_embed record_mode'
+        batch_tokens = []
+        self.batch_sp2_set = []
+
+        for i in range(len(higher_full_super_indices)):
+            sp2_set, sp1_sizes = torch.unique(higher_full_super_indices[i], return_counts=True)
+            self.batch_sp2_set.append(sp2_set)
+
+            tokens = []
+            scene_sp2_2_sp1_token_indices = []
+
+            for sp2_index in sp2_set:
+                attn_region = torch.tensor([sp2_index]).cuda()
+                neighbor_loc = torch.where(edge_index[0][0] == sp2_index.item())[0]
+
+                if len(neighbor_loc) != 0:
+                    neighbor_sp_index = edge_index[0][1][neighbor_loc]  # target[neighbor_loc]
+                    dists = torch.cdist(sp_coords[0], sp_coords[0], p=2)[sp2_index]
+                    existing_neighbor_dists = dists[neighbor_sp_index]
+                    existing_dist_ranking = torch.argsort(existing_neighbor_dists, dim=0, descending=False)
+
+                if len(neighbor_sp_index) < (self.pad_limit - 1) or len(neighbor_loc) == 0:
+                    selected_neighbors = neighbor_sp_index
+                    sort = torch.argsort(dists, dim=0, descending=False)
+                    mask = torch.ones_like(dists, dtype=bool)
+                    neighbor_sp_index = torch.concat((attn_region, neighbor_sp_index))
+                    mask[neighbor_sp_index] = False
+                    mask = mask[sort]
+                    selected_neighbors = torch.concat(
+                        (selected_neighbors, sort[mask][:self.pad_limit - len(neighbor_sp_index)]))
+                elif len(neighbor_sp_index) > (self.pad_limit - 1):
+                    neighbor_sp_index = neighbor_sp_index[existing_dist_ranking]
+                    selected_neighbors = neighbor_sp_index[:self.pad_limit - 1]
+
+                selected_neighbors = selected_neighbors.cuda()
+                attn_region = torch.sort(torch.cat((attn_region, selected_neighbors), dim=0), descending=False)[0]
+                sp2_token = batch_token_embed[i][attn_region]
+                tokens.append(sp2_token)
+
+            tokens = torch.stack(tokens, dim=0)
+            batch_tokens.append(tokens)
+            # if record_mode == 'remain':
+            #     self.batch_convert_remain_indices.clear()
+            #     self.batch_convert_remain_indices.append(scene_sp2_2_sp1_token_indices)
+            # elif record_mode == 'mask':
+            #     self.batch_convert_mask_indices.clear()
+            #     self.batch_convert_mask_indices.append(scene_sp2_2_sp1_token_indices)
+            # elif record_mode == 'full':
+            #     self.batch_convert_full_indices.clear()
+            #     self.batch_convert_full_indices.append(scene_sp2_2_sp1_token_indices)
+        return batch_tokens
+
     def remove_padding(self,
                        padded_tokens: torch.Tensor,
                        higher_full_super_indices: list,
@@ -194,12 +253,25 @@ class Embed_and_Prep(nn.Module):
 
             return torch.vstack(scene_unpadded_tokens)
 
-    def forward(self, full_features, sp_coords, full_super_indices_10, full_super_indices_21):
-        batch_token_embed = self.token_embed(full_features, full_super_indices_10)
-        batch_pos_embed = self.pos_embed(sp_coords)
+    def forward(self, full_features=None, sp_coords=None, full_super_indices_20=None): # full_super_indices_21, edge_index=None
+        if full_features is not None:
+            assert full_super_indices_20 is not None, 'embedding full_features but super_indices is None'
+            batch_token_embed = self.token_embed(full_features, full_super_indices_20)
+        else:
+            batch_token_embed = None
+        if sp_coords is not None:
+            batch_pos_embed = self.pos_embed(sp_coords)
+        else:
+            batch_pos_embed = None
 
-        batch_token_embed = self.pad_embed(batch_token_embed, full_super_indices_21)
-        batch_pos_embed = self.pad_embed(batch_pos_embed, full_super_indices_21, record_mode='full')
+        # batch_token_embed = self.select_embed(batch_token_embed, full_super_indices_21, edge_index, sp_coords)
+        # batch_pos_embed = self.select_embed(batch_pos_embed,
+        #                                     full_super_indices_21,
+        #                                     edge_index,
+        #                                     sp_coords,
+        #                                     record_mode='full')
+        # batch_token_embed = self.pad_embed(batch_token_embed, full_super_indices_21)
+        # batch_pos_embed = self.pad_embed(batch_pos_embed, full_super_indices_21, record_mode='full')
 
         if isinstance(batch_token_embed, list):
             batch_token_embed = torch.unsqueeze(batch_token_embed[0], dim=0)
@@ -256,6 +328,50 @@ class Attention(nn.Module):
         self.proj = nn.Linear(input_dim, input_dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
+    def forward(self, x, local_attn_mask=None):
+        B, N, C = x.shape
+        # qkv.shape = [B, N, 3, H, C/H] -> [3, B, H, N, C/H]
+        qkv = self.qkv(x).reshape(B, N, 3, self.head_num, C // self.head_num).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+
+        if local_attn_mask != None:
+            local_attn_mask *= -1000000.
+            local_attn_mask = local_attn_mask.cuda()
+            attn[:, :] += local_attn_mask
+
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+
+
+'''
+class Attention(nn.Module):
+
+    def __init__(self,
+                 input_dim: int,
+                 head_num: int,
+                 attn_drop: float = 0.,
+                 proj_drop: float = 0.,
+                 qkv_bias: bool = False,
+                 qk_scale: bool = None):
+
+        super().__init__()
+        self.head_num = head_num
+        head_dim = input_dim // self.head_num
+        self.qkv = nn.Linear(input_dim, input_dim * 3, bias=qkv_bias)
+        self.attn_drop = nn.Dropout(attn_drop)
+
+        # TODO init scale
+        self.scale = qk_scale or head_dim**1  #-0.5
+        self.proj = nn.Linear(input_dim, input_dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
     def forward(self, x):
         B, N, P, C = x.shape
         # qkv.shape = [3, B, N, H, P, C/H]
@@ -263,6 +379,7 @@ class Attention(nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
+
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
         # print(attn.shape, k.transpose(-2, -1).shape, v.shape)
@@ -271,6 +388,7 @@ class Attention(nn.Module):
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
+'''
 
 
 class Block(nn.Module):
@@ -294,16 +412,16 @@ class Block(nn.Module):
 
         self.drop_path = DropPath(drop_prob=droppath_prob) if droppath_prob > 0. else nn.Identity()
         self.mlp = MLP(input_dim=input_dim, hidden_dim=mlp_hidden_dim, act_layer=act_layer, dropout_prob=dropout_prob)
-        self.local_attn = Attention(input_dim=input_dim,
-                                    head_num=head_num,
-                                    qkv_bias=qkv_bias,
-                                    qk_scale=qk_scale,
-                                    attn_drop=attn_drop,
-                                    proj_drop=dropout_prob)
+        self.attn = Attention(input_dim=input_dim,
+                              head_num=head_num,
+                              qkv_bias=qkv_bias,
+                              qk_scale=qk_scale,
+                              attn_drop=attn_drop,
+                              proj_drop=dropout_prob)
 
-    def forward(self, x):
+    def forward(self, x, local_attn_mask=None):
         x = self.norm1(x)
-        x = self.local_attn(x)
+        x = self.attn(x, local_attn_mask)
         x = x + self.drop_path(x)
         x = self.norm2(x)
         x = self.mlp(x)
@@ -355,9 +473,11 @@ class MAE_Encoder(nn.Module):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, x, pos_embed):
+    def forward(self, x, pos_embed=None, local_attn_mask=None):
         for _, block in enumerate(self.blocks):
-            x = block(x + pos_embed)
+            if pos_embed is not None:
+                x += pos_embed
+            x = block(x, local_attn_mask)
         x = self.norm(x)
         return x
 
@@ -398,9 +518,9 @@ class MAE_Decoder(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def forward(self, x, pos):
+    def forward(self, x, pos, local_attn_mask=None):
         for _, block in enumerate(self.blocks):
-            x = block(x + pos)
+            x = block(x + pos, local_attn_mask)
         x = self.norm(x)
         return x
 
@@ -454,9 +574,9 @@ class MAE_Unsample(nn.Module):
     def forward(self, higher_feats, lower_points, higher_points):
         """
         Input:
-            higher_feats: [B, N_sp2,C]
+            higher_feats: [B, N_sp2, C]
             lower_points: [B, N_points, 3]
-            higher_points: [B, N_sp1, 3]
+            higher_points: [B, N_sp2, 3]
         Return:
             interpolated_feats: [B, N_points, C]
         """
@@ -467,10 +587,10 @@ class MAE_Unsample(nn.Module):
         dists = self.square_distance(lower_points, higher_points)
         dists, idx = dists.sort(dim=-1)
         dists, idx = dists[:, :, :3], idx[:, :, :3]  # [B, N, 3]
-
         dist_recip = 1.0 / (dists + 1e-8)
         norm = torch.sum(dist_recip, dim=2, keepdim=True)
         weight = dist_recip / norm
+        u = self.index_points(higher_feats, idx)
         interpolated_feats = torch.sum(self.index_points(higher_feats, idx) * weight.view(B, N, 3, 1), dim=2)
         return interpolated_feats
 
@@ -506,12 +626,18 @@ class Superpoint_MAE(nn.Module):
                                    dropout_prob=self.dropout_prob,
                                    droppath_prob=self.droppath_prob)
         self.unsampling = MAE_Unsample()
-        self.decoder = MAE_Decoder(token_embed_dim=self.token_embed_dim,
-                                   head_num=self.head_num,
-                                   depth=self.decoder_depth,
-                                   mlp_ratio=self.mlp_ratio,
-                                   dropout_prob=self.dropout_prob,
-                                   droppath_prob=self.droppath_prob)
+        self.decoder1 = MAE_Decoder(token_embed_dim=self.token_embed_dim,
+                                    head_num=self.head_num,
+                                    depth=self.decoder_depth,
+                                    mlp_ratio=self.mlp_ratio,
+                                    dropout_prob=self.dropout_prob,
+                                    droppath_prob=self.droppath_prob)
+        self.decoder2 = MAE_Decoder(token_embed_dim=self.token_embed_dim,
+                                    head_num=self.head_num,
+                                    depth=self.decoder_depth,
+                                    mlp_ratio=self.mlp_ratio,
+                                    dropout_prob=self.dropout_prob,
+                                    droppath_prob=self.droppath_prob)
         self.cls_projector = nn.Linear(self.token_embed_dim, self.cls_num)
         self.softmax = nn.Softmax(dim=-1)
 
@@ -523,28 +649,89 @@ class Superpoint_MAE(nn.Module):
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
+    def gen_local_attn_mask(self, higher_full_super_indices: list, edge_index: list, sp_coords: list):
+
+        with torch.no_grad():
+            sp2_set, _ = torch.unique(higher_full_super_indices[0], return_counts=True)
+            local_attn_mask = torch.ones((len(sp2_set), len(sp2_set)), dtype=float)
+
+            for sp2_index in sp2_set:
+                attn_region = torch.tensor([sp2_index]).cuda()
+                neighbor_loc = torch.where(edge_index[0][0] == sp2_index.item())[0]
+
+                if len(neighbor_loc) != 0:
+                    # print(1)
+                    neighbor_sp_index = edge_index[0][1][neighbor_loc]  # target[neighbor_loc]
+                    dists = torch.cdist(sp_coords[0], sp_coords[0], p=2)[sp2_index]
+                    existing_neighbor_dists = dists[neighbor_sp_index]
+                    existing_dist_ranking = torch.argsort(existing_neighbor_dists, dim=0, descending=False)
+
+                if len(neighbor_sp_index) < (self.pad_limit - 1) or len(neighbor_loc) == 0:
+                    # print(2)
+                    selected_neighbors = neighbor_sp_index
+                    sort = torch.argsort(dists, dim=0, descending=False)
+                    mask = torch.ones_like(dists, dtype=bool)
+                    neighbor_sp_index = torch.concat((attn_region, neighbor_sp_index))
+                    mask[neighbor_sp_index] = False
+                    mask = mask[sort]
+                    selected_neighbors = torch.concat(
+                        (selected_neighbors, sort[mask][:self.pad_limit - len(neighbor_sp_index)]))
+                elif len(neighbor_sp_index) > (self.pad_limit - 1):
+                    # print(3)
+                    neighbor_sp_index = neighbor_sp_index[existing_dist_ranking]
+                    selected_neighbors = neighbor_sp_index[:self.pad_limit - 1]
+                elif len(neighbor_sp_index) == (self.pad_limit - 1):
+                    selected_neighbors = neighbor_sp_index
+
+                selected_neighbors = selected_neighbors.cuda()
+                attn_region = torch.sort(torch.cat((attn_region, selected_neighbors), dim=0), descending=False)[0]
+                local_attn_mask[sp2_index][attn_region] = 0.
+        return local_attn_mask
+
     def forward(self, inputs, extras, **kwargs):
         full_features = extras['full_features']
         full_super_indices_10 = extras['full_super_indices_10']
         full_super_indices_21 = extras['full_super_indices_21']
+        full_super_indices_20 = extras['full_super_indices_20']
+        sp2_coords = extras['sp2_coords']
         sp1_coords = extras['sp1_coords']
-        assert len(full_features) and len(sp1_coords) == 1, 'only batch size: 1 is currently supported'
+        sp_edge_index = extras['sp2_edge_index']
+        # sp2_attr = extras['sp2_attr']
+        # sp2_edge_attr = extras['sp2_edge_attr']
 
-        batch_token_embed, batch_pos_embed = self.prep_embed(full_features, sp1_coords, full_super_indices_10,
-                                                             full_super_indices_21)
-        x = self.encoder(batch_token_embed, batch_pos_embed)
-        x = self.decoder(x, batch_pos_embed)
+        assert len(full_features) and len(sp2_coords) == 1, 'only batch size: 1 is currently supported'
 
-        x = self.prep_embed.remove_padding(x, full_super_indices_21)
-        x_indices = self.prep_embed.batch_convert_full_indices[0]
-        sort = torch.argsort(x_indices)
-        assert len(x) == len(x_indices), f'{x.shape, x_indices.shape}'
-        x, x_indices = x[sort], x_indices[sort]
+        batch_token_embed, batch_pos_embed = self.prep_embed(full_features, sp2_coords, full_super_indices_20)
+
+        local_attn_mask = self.gen_local_attn_mask(full_super_indices_20, sp_edge_index, sp2_coords)
+
+        print(local_attn_mask.shape, local_attn_mask)
+        exit()
+
+        x = self.encoder(batch_token_embed, batch_pos_embed, local_attn_mask)
+
+        x = self.decoder1(x, batch_pos_embed, local_attn_mask)
+
+        # x = self.prep_embed.remove_padding(x, full_super_indices_21)
+        # x_indices = self.prep_embed.batch_convert_full_indices[0]
+        # sort = torch.argsort(x_indices)
+        # assert len(x) == len(x_indices), f'{x.shape, x_indices.shape}'
+        # x, x_indices = x[sort], x_indices[sort]
+
         original_coords = full_features[0][:, :3]
 
-        unsampled_x = self.unsampling(torch.unsqueeze(x, dim=0), torch.unsqueeze(original_coords, dim=0),
-                                      torch.unsqueeze(sp1_coords[0], dim=0))
-        logits = self.cls_projector(unsampled_x)
-        scores = self.softmax(logits)
+        x = self.unsampling(higher_feats=x,
+                            lower_points=torch.unsqueeze(original_coords, dim=0),
+                            higher_points=torch.unsqueeze(sp2_coords[0], dim=0))
 
+        # _, batch_sp1_pos_embed = self.prep_embed(sp_coords=sp1_coords)
+        
+        # x = self.decoder2(x, batch_sp1_pos_embed)
+
+        # x = self.unsampling(higher_feats=x,
+        #                     lower_points=torch.unsqueeze(original_coords, dim=0),
+        #                     higher_points=torch.unsqueeze(sp1_coords[0], dim=0))
+
+        logits = self.cls_projector(x)
+        scores = self.softmax(logits)
         return scores
