@@ -1,6 +1,7 @@
 import logging
 import os
 import os.path as osp
+import re
 import time
 
 import numpy as np
@@ -93,35 +94,88 @@ def save_checkpoint(network, args=None, epoch_idx=None, iter_idx=None, optimizer
 '''Functionalities for Saving Pseudo Label Data'''
 
 
-def save_pseudo_labels(labels: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
-    assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
-    scene_path = osp.join(dataset_path, 'scans', scene_id)
-    # os.makedirs(scene_path, exist_ok=True)
-    # print(labels)
-    # print(osp.join(scene_path, f'{scene_id}_labels_iter_{str(epoch)}.npy'))
-    np.save(osp.join(scene_path, f'{scene_id}_labels_iter_{str(epoch)}.npy'), labels)
+def save_pseudo_labels(labels: np.ndarray, save_path: str, scene_id: str, epoch) -> None:
+    assert osp.exists(save_path), f'dataset path {save_path} does not exist'
+    scene_path = osp.join(save_path, scene_id)
+    os.makedirs(scene_path, exist_ok=True)
+    np.save(osp.join(scene_path, f'{scene_id}_labels_iter_{epoch}.npy'), labels)
 
 
-def save_pseudo_loss(loss: np.ndarray, dataset_path: str, scene_id: str, epoch) -> None:
-    assert osp.exists(dataset_path), f'path {dataset_path} does not exist'
-    scene_path = osp.join(dataset_path, 'scans', scene_id)
-    # os.makedirs(scene_path, exist_ok=True)
-    # print(loss)
-    # print(osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'))
-    np.save(osp.join(scene_path, f'{scene_id}_loss_iter_{str(epoch)}.npy'), loss)
+def save_pseudo_loss(loss: np.ndarray, save_path: str, scene_id: str, epoch) -> None:
+    assert osp.exists(save_path), f'dataset path {save_path} does not exist'
+    scene_path = osp.join(save_path, scene_id)
+    os.makedirs(scene_path, exist_ok=True)
+    np.save(osp.join(scene_path, f'{scene_id}_loss_iter_{epoch}.npy'), loss)
 
 
-def clear_paths(dataset_path: str) -> None:
+def clean_inference_paths(save_path: str) -> None:
     '''
-    Used to clear pseudo labeling paths (_labels and _loss)
+    Used to clear pseudo labeling paths
     '''
-    scenes = os.listdir(osp.join(dataset_path, 'scans'))
+    scenes = os.listdir(save_path)
     for scene in scenes:
-        path_loss = osp.join(dataset_path, 'scans', scene, f'{scene}_loss_epoch_0.npy')
-        path_predictions = osp.join(dataset_path, 'scans', scene, f'{scene}_labels_epoch_0.npy')
-        if osp.exists(path_loss):
-            # print(path_loss)
-            os.remove(path_loss)
-        if osp.exists(path_predictions):
-            # print(path_predictions)
-            os.remove(path_predictions)
+        scene_del_files = [i for i in os.listdir(osp.join(save_path, scene))]
+        for file in scene_del_files:
+            # print(osp.join(dataset_path, 'scans', scene, file))
+            os.remove(osp.join(save_path, scene, file))
+
+
+def clean_prev_inf_paths(save_path: str) -> None:
+    '''
+    Used to clear unused pseudo labeling paths
+    '''
+    scenes = os.listdir(save_path)
+    for scene in scenes:
+        scene_files = [i for i in os.listdir(osp.join(save_path, scene))]
+        suffix = [re.findall(r'[-+]?\d+.npy', f) for f in scene_files]
+        epoch_nums = list(map(int, np.concatenate([re.findall(r'[-+]?\d+', f[0]) for f in suffix])))
+        epoch_num = np.max(epoch_nums)
+        scene_del_files = [i for i in os.listdir(osp.join(save_path, scene)) if not i.endswith(f'iter_{epoch_num}.npy')]
+        for file in scene_del_files:
+            # print(osp.join(save_path, 'scans', scene, file))
+            os.remove(osp.join(save_path, scene, file))
+
+
+def seq_2_ordered_set(seq):
+    seen = set()
+    seen_add = seen.add
+    return [x for x in seq if not (x in seen or seen_add(x))]
+
+
+def validate_state_dicts(model_state_dict_1, model_state_dict_2):
+    if len(model_state_dict_1) != len(model_state_dict_2):
+        print(f"Length mismatch: {len(model_state_dict_1)}, {len(model_state_dict_2)}")
+        return False
+
+    # Replicate modules have "module" attached to their keys, so strip these off when comparing to local model.
+    if next(iter(model_state_dict_1.keys())).startswith("module"):
+        model_state_dict_1 = {k[len("module") + 1:]: v for k, v in model_state_dict_1.items()}
+
+    if next(iter(model_state_dict_2.keys())).startswith("module"):
+        model_state_dict_2 = {k[len("module") + 1:]: v for k, v in model_state_dict_2.items()}
+
+    for ((k_1, v_1), (k_2, v_2)) in zip(model_state_dict_1.items(), model_state_dict_2.items()):
+        if k_1 != k_2:
+            print(f"Key mismatch: {k_1} vs {k_2}")
+            return False
+        # convert both to the same CUDA device
+        if str(v_1.device) != "cuda:0":
+            v_1 = v_1.to("cuda:0" if torch.cuda.is_available() else "cpu")
+        if str(v_2.device) != "cuda:0":
+            v_2 = v_2.to("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        if not torch.allclose(v_1, v_2):
+            print(f"Tensor mismatch: {v_1} vs {v_2}")
+            return False
+
+
+'''Functionalities for Visualizing Point Cloud'''
+
+
+def clean_vis_paths(vis_path: str):
+    assert osp.exists(vis_path), 'path to visualization files does not exist'
+    scenes = os.listdir(vis_path)
+    for scene in scenes:
+        del_files = [i for i in os.listdir(osp.join(vis_path, scene)) if not i.endswith('base_coords_colors.npy')]
+        for file in del_files:
+            os.remove(osp.join(vis_path, scene, file))
